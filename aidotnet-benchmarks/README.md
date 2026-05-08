@@ -4,10 +4,10 @@ C# benchmark project for evaluating AiDotNet-side workloads. The project pins th
 AiDotNet NuGet package and provides a reproducible benchmark runner with the same
 model families and metric names as the PyTorch project.
 
-> Note: the included `ManagedTensorBackend` is a validation/reference backend so
-> the harness can be reviewed without coupling benchmark plumbing to volatile
-> AiDotNet APIs. Keep it for harness validation, then add a real AiDotNet adapter
-> behind `IBenchmarkModel` for fair final numbers.
+> Note: the runner uses `AiDotNetTensorBackend`, which builds benchmark inputs
+> and weights with `AiDotNet.Tensors.LinearAlgebra.Tensor<float>` and executes
+> forward passes through AiDotNet tensor operations so the reported numbers cover
+> AiDotNet runtime work rather than a local reference implementation.
 
 ## Run
 
