@@ -45,14 +45,16 @@ cd pytorch-benchmarks
 python -m venv .venv
 source .venv/bin/activate        # macOS/Linux
 # or: source .venv/Scripts/activate      # Windows Git Bash
-# or: .\.venv\Scripts\Activate.ps1  # Windows PowerShell
+# or: .\.venv\Scripts\Activate.ps1  # Windows PowerShell; do not use source here
 python -m pip install --upgrade pip
 python -m pip install -e .
 pytorch-bench --models mlp,cnn,lstm,transformer --output ../results/pytorch.json
 ```
 
 If `pytorch-bench` is not found, confirm that the virtual environment is active
-and rerun `python -m pip install -e .` from `pytorch-benchmarks/`. You can also
+and rerun `python -m pip install -e .` from `pytorch-benchmarks/`. In PowerShell,
+you can avoid PATH issues by running `.\.venv\Scripts\pytorch-bench.exe` or
+`python -m pytorch_benchmarks` with the same benchmark arguments. You can also
 run `python src/pytorch_benchmarks --models mlp,cnn,lstm,transformer --output ../results/pytorch.json`
 from the same directory as an install-free fallback.
 
