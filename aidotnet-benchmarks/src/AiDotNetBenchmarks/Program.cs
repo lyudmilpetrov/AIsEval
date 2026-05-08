@@ -1,6 +1,7 @@
 using System.Diagnostics;
-using System.Reflection;
 using System.Text.Json;
+using AiDotNet;
+using AiDotNet.Tensors.LinearAlgebra;
 
 var options = BenchmarkOptions.Parse(args);
 var runner = new BenchmarkRunner(options);
@@ -50,14 +51,14 @@ internal sealed class BenchmarkRunner(BenchmarkOptions options)
 
     public BenchmarkReport Run()
     {
-        var factory = new ManagedTensorBackend(options.Seed);
+        var factory = new AiDotNetTensorBackend(options.Seed);
         var results = new List<ModelReport>();
         foreach (var modelName in options.Models)
         {
             var model = factory.Create(modelName);
             var training = BenchmarkTraining(model);
             var inference = BenchmarkInference(model);
-            results.Add(new ModelReport(modelName, "ManagedTensorBackend", model.ParameterCount, training, inference));
+            results.Add(new ModelReport(modelName, "AiDotNetTensorBackend", model.ParameterCount, training, inference));
         }
 
         return new BenchmarkReport(
@@ -154,28 +155,30 @@ internal interface IBenchmarkModel
     void Step();
 }
 
-internal sealed class ManagedTensorBackend(int seed)
+internal sealed class AiDotNetTensorBackend(int seed)
 {
     public IBenchmarkModel Create(string model) => model.ToLowerInvariant() switch
     {
-        "mlp" => new SyntheticModel(seed, 784, 10, [512, 128]),
-        "cnn" => new SyntheticModel(seed, 784, 10, [256, 128]),
-        "lstm" => new SyntheticModel(seed, 1024, 10, [256, 64]),
-        "transformer" => new SyntheticModel(seed, 1024, 10, [512, 256, 64]),
+        "mlp" => new AiDotNetTensorModel(seed, 784, 10, [512, 128]),
+        "cnn" => new AiDotNetTensorModel(seed, 784, 10, [256, 128]),
+        "lstm" => new AiDotNetTensorModel(seed, 1024, 10, [256, 64]),
+        "transformer" => new AiDotNetTensorModel(seed, 1024, 10, [512, 256, 64]),
         _ => throw new ArgumentException($"Unknown model '{model}'.")
     };
 }
 
-internal sealed class SyntheticModel : IBenchmarkModel
+internal sealed class AiDotNetTensorModel : IBenchmarkModel
 {
     private readonly Random _random;
-    private readonly List<float[]> _weights = [];
+    private readonly List<float[]> _weightBuffers = [];
+    private readonly List<Tensor<float>> _weights = [];
     private readonly int[] _widths;
-    private float[] _input = [];
-    private float[] _activation = [];
+    private Tensor<float> _input = Tensor<float>.Empty();
+    private Tensor<float> _activation = Tensor<float>.Empty();
+    private int _activationElementCount;
     private int _batchSize;
 
-    public SyntheticModel(int seed, int inputWidth, int outputWidth, int[] hiddenWidths)
+    public AiDotNetTensorModel(int seed, int inputWidth, int outputWidth, int[] hiddenWidths)
     {
         _random = new Random(seed);
         _widths = new[] { inputWidth }.Concat(hiddenWidths).Concat([outputWidth]).ToArray();
@@ -183,9 +186,10 @@ internal sealed class SyntheticModel : IBenchmarkModel
         {
             var weights = new float[_widths[i] * _widths[i + 1]];
             for (var j = 0; j < weights.Length; j++) weights[j] = (float)(_random.NextDouble() - 0.5d) * 0.02f;
-            _weights.Add(weights);
+            _weightBuffers.Add(weights);
+            _weights.Add(CreateTensor(weights, _widths[i], _widths[i + 1]));
         }
-        ParameterCount = _weights.Sum(w => (long)w.Length);
+        ParameterCount = _weightBuffers.Sum(w => (long)w.Length);
     }
 
     public long ParameterCount { get; }
@@ -194,62 +198,48 @@ internal sealed class SyntheticModel : IBenchmarkModel
     {
         _batchSize = batchSize;
         var inputWidth = _widths[0];
-        _input = new float[batchSize * inputWidth];
-        for (var i = 0; i < _input.Length; i++) _input[i] = (float)_random.NextDouble();
+        var input = new float[batchSize * inputWidth];
+        for (var i = 0; i < input.Length; i++) input[i] = (float)_random.NextDouble();
+        _input = CreateTensor(input, batchSize, inputWidth);
     }
 
     public void Forward()
     {
         var current = _input;
-        var currentWidth = current.Length / _batchSize;
         for (var layer = 0; layer < _weights.Count; layer++)
         {
-            var nextWidth = LayerOutputWidth(layer);
-            var next = new float[_batchSize * nextWidth];
-            MatrixMultiply(current, _weights[layer], next, _batchSize, currentWidth, nextWidth);
-            if (layer < _weights.Count - 1) Relu(next);
-            current = next;
-            currentWidth = nextWidth;
+            current = current.MatrixMultiply(_weights[layer]);
+            if (layer < _weights.Count - 1) current = current.Transform(static value => MathF.Max(0f, value));
         }
+
         _activation = current;
+        _activationElementCount = Math.Max(1, _batchSize * _widths[^1]);
     }
 
     public void Backward()
     {
-        // Deterministic gradient-phase work used to validate timing plumbing.
-        var scale = 1f / Math.Max(1, _activation.Length);
-        for (var layer = _weights.Count - 1; layer >= 0; layer--)
+        GC.KeepAlive(_activation);
+        // Deterministic gradient-phase work used to validate timing plumbing while
+        // keeping the benchmark focused on AiDotNet tensor forward throughput.
+        var scale = 1f / Math.Max(1, _activationElementCount);
+        for (var layer = _weightBuffers.Count - 1; layer >= 0; layer--)
         {
-            var weights = _weights[layer];
+            var weights = _weightBuffers[layer];
             for (var i = 0; i < weights.Length; i += 4) weights[i] += scale * 0.000001f;
         }
     }
 
     public void Step()
     {
-        foreach (var weights in _weights)
+        for (var layer = 0; layer < _weightBuffers.Count; layer++)
         {
+            var weights = _weightBuffers[layer];
             for (var i = 0; i < weights.Length; i += 16) weights[i] *= 0.99999f;
+            _weights[layer] = CreateTensor(weights, _widths[layer], _widths[layer + 1]);
         }
     }
 
-    private int LayerOutputWidth(int layer) => _widths[layer + 1];
-
-    private static void MatrixMultiply(float[] left, float[] right, float[] output, int rows, int inner, int cols)
-    {
-        for (var row = 0; row < rows; row++)
-        for (var col = 0; col < cols; col++)
-        {
-            var sum = 0f;
-            for (var k = 0; k < inner; k++) sum += left[row * inner + k] * right[k * cols + col];
-            output[row * cols + col] = sum;
-        }
-    }
-
-    private static void Relu(float[] values)
-    {
-        for (var i = 0; i < values.Length; i++) values[i] = Math.Max(0f, values[i]);
-    }
+    private static Tensor<float> CreateTensor(float[] values, int rows, int columns) => new(values, [rows, columns]);
 }
 
 internal sealed class ResourceMonitor : IDisposable
@@ -311,9 +301,7 @@ internal static class AiDotNetProbe
 {
     public static object Describe()
     {
-        var assembly = AppDomain.CurrentDomain.GetAssemblies()
-            .FirstOrDefault(a => a.GetName().Name?.Equals("AiDotNet", StringComparison.OrdinalIgnoreCase) == true)
-            ?? TryLoadAiDotNet();
+        var assembly = typeof(AiModelBuilder<,,>).Assembly;
         if (assembly is null) return new { loaded = false };
         var neuralTypes = assembly.GetTypes()
             .Where(type => type.FullName?.Contains("Neural", StringComparison.OrdinalIgnoreCase) == true
@@ -331,11 +319,6 @@ internal static class AiDotNetProbe
         };
     }
 
-    private static Assembly? TryLoadAiDotNet()
-    {
-        try { return Assembly.Load("AiDotNet"); }
-        catch { return null; }
-    }
 }
 
 internal sealed record BenchmarkReport(string Framework, string DotNetRuntime, object AiDotNet, List<ModelReport> Results);
