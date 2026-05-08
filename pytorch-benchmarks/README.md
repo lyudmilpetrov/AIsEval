@@ -16,6 +16,7 @@ python -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -e .
+python -m pip install uvicorn[standard] fastapi
 ```
 to exit pyton environment, run `deactivate` in the terminal.
 ### Windows Git Bash
@@ -25,6 +26,7 @@ python -m venv .venv
 source .venv/Scripts/activate
 python -m pip install --upgrade pip
 python -m pip install -e .
+python -m pip install uvicorn[standard] fastapi
 ```
 
 ### Windows PowerShell
