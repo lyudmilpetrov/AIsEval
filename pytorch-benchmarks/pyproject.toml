@@ -12,6 +12,7 @@ dependencies = [
   "psutil>=5.9",
   "fastapi>=0.110",
   "uvicorn[standard]>=0.27",
+  "python-multipart>=0.0.9",
 ]
 
 [project.scripts]
