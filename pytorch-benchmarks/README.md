@@ -17,7 +17,7 @@ source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -e .
 ```
-
+to exit pyton environment, run `deactivate` in the terminal.
 ### Windows Git Bash
 
 ```bash
