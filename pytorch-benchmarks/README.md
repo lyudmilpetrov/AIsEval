@@ -138,3 +138,24 @@ The JSON report includes per-model metrics for:
 - inference latency for a single sample
 - throughput for batch sizes 1, 8, 32, and 128
 - warm-up versus steady-state inference timing
+
+### CSV Regression Prediction Endpoint
+
+`POST /api/Regression/Predict?UseGPU=false` trains a native PyTorch linear
+regression model from uploaded CSV data and returns JSON predictions. Send a
+multipart request with:
+
+- `features`: `features.csv`, where each row contains numeric feature columns
+  followed by the numeric target value in the last column.
+- `tests`: `tests.csv`, where each row contains only the numeric feature columns
+  to predict.
+
+Both files may include a single header row. Set `UseGPU=true` to use `cuda:0`
+when CUDA is available; otherwise the endpoint falls back to CPU and reports
+`gpuUsed: false`.
+
+```bash
+curl -X POST "http://localhost:8000/api/Regression/Predict?UseGPU=false" \
+  -F "features=@features.csv" \
+  -F "tests=@tests.csv"
+```
