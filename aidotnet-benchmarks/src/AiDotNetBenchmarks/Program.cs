@@ -3,14 +3,15 @@ using System.Text.Json;
 using AiDotNet;
 using AiDotNet.Tensors.LinearAlgebra;
 
-// Parse command-line options, execute the full benchmark suite, and persist the
-// resulting report for both humans and automation to consume.
-var options = BenchmarkOptions.Parse(args);
-var runner = new BenchmarkRunner(options);
-var report = runner.Run();
-Directory.CreateDirectory(Path.GetDirectoryName(options.OutputPath) ?? ".");
-File.WriteAllText(options.OutputPath, JsonSerializer.Serialize(report, JsonOptions.Default));
-Console.WriteLine(JsonSerializer.Serialize(report, JsonOptions.Default));
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddControllers();
+
+var app = builder.Build();
+
+app.MapControllers();
+
+app.Run();
 
 internal sealed record BenchmarkOptions(
     string[] Models,
