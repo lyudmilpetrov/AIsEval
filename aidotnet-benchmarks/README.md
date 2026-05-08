@@ -25,3 +25,25 @@ The runner records:
 - throughput for batch sizes 1, 8, 32, and 128
 - warm-up versus steady-state inference timing
 - AiDotNet assembly identity and a neural-network type probe
+
+## CSV Regression API
+
+The web API exposes `POST /api/Regression/Predict?UseGPU=false` for the
+AiDotNet quick-start style regression workflow. Upload a multipart request with:
+
+- `features`: `features.csv`, where each row contains numeric feature columns
+  followed by the numeric target value in the last column.
+- `tests`: `tests.csv`, where each row contains only the numeric feature columns
+  to predict.
+
+Both CSV files may include a single header row. Set `UseGPU=true` to request
+AiDotNet GPU acceleration; the endpoint passes that request into
+`ConfigureGpuAcceleration` with device `0`.
+
+```bash
+curl -X POST "http://localhost:5000/api/Regression/Predict?UseGPU=false" \
+  -F "features=@features.csv" \
+  -F "tests=@tests.csv"
+```
+
+The response contains JSON metadata plus one prediction per row in `tests.csv`.
