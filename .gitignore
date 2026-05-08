@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# .NET
+bin/
+obj/
+
+# Benchmark outputs
+results/*.json
+results/*.csv
