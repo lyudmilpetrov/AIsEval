@@ -209,7 +209,7 @@ internal sealed class AiDotNetTensorModel : IBenchmarkModel
         for (var layer = 0; layer < _weights.Count; layer++)
         {
             current = current.MatrixMultiply(_weights[layer]);
-            if (layer < _weights.Count - 1) current = current.Transform(static value => MathF.Max(0f, value));
+            if (layer < _weights.Count - 1) current = (Tensor<float>)current.Transform(static value => MathF.Max(0f, value));
         }
 
         _activation = current;
