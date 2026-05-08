@@ -5,3 +5,5 @@ Summary: Native Python PyTorch training and inference benchmark harness.
 Requires-Python: >=3.10
 Requires-Dist: torch>=2.2
 Requires-Dist: psutil>=5.9
+Requires-Dist: fastapi>=0.110
+Requires-Dist: uvicorn[standard]>=0.27
