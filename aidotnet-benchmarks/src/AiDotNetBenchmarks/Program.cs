@@ -3,6 +3,8 @@ using System.Text.Json;
 using AiDotNet;
 using AiDotNet.Tensors.LinearAlgebra;
 
+// Parse command-line options, execute the full benchmark suite, and persist the
+// resulting report for both humans and automation to consume.
 var options = BenchmarkOptions.Parse(args);
 var runner = new BenchmarkRunner(options);
 var report = runner.Run();
@@ -22,6 +24,8 @@ internal sealed record BenchmarkOptions(
 {
     public static BenchmarkOptions Parse(string[] args)
     {
+        // Convert --key value command-line pairs into a simple lookup table so
+        // individual options can fall back to sensible defaults when omitted.
         var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         for (var i = 0; i < args.Length - 1; i += 2)
         {
@@ -33,6 +37,9 @@ internal sealed record BenchmarkOptions(
 
         var models = map.GetValueOrDefault("models", "mlp,cnn,lstm,transformer")
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        // Materialize the normalized option values that drive the benchmark
+        // workload shape and output location.
         return new BenchmarkOptions(
             models,
             Int(map, "epochs", 3),
@@ -51,6 +58,8 @@ internal sealed class BenchmarkRunner(BenchmarkOptions options)
 
     public BenchmarkReport Run()
     {
+        // Create each requested model, measure its training and inference
+        // phases, and collect those measurements into one framework-level report.
         var factory = new AiDotNetTensorBackend(options.Seed);
         var results = new List<ModelReport>();
         foreach (var modelName in options.Models)
@@ -70,6 +79,8 @@ internal sealed class BenchmarkRunner(BenchmarkOptions options)
 
     private TrainingReport BenchmarkTraining(IBenchmarkModel model)
     {
+        // Track per-epoch duration plus the synthetic data-loading and gradient
+        // phases, while a background monitor samples process and GPU resources.
         var epochSeconds = new List<double>();
         var gradientSeconds = new List<double>();
         var dataSeconds = new List<double>();
@@ -78,6 +89,8 @@ internal sealed class BenchmarkRunner(BenchmarkOptions options)
 
         for (var epoch = 0; epoch < options.Epochs; epoch++)
         {
+            // Each epoch repeatedly loads fresh synthetic inputs, performs a
+            // forward pass, simulates backward work, and applies a small update.
             var epochTimer = Stopwatch.StartNew();
             for (var batch = 0; batch < options.TrainBatches; batch++)
             {
@@ -108,10 +121,15 @@ internal sealed class BenchmarkRunner(BenchmarkOptions options)
 
     private List<InferenceReport> BenchmarkInference(IBenchmarkModel model)
     {
+        // Measure inference at multiple batch sizes so the report captures both
+        // latency and throughput behavior under different request shapes.
         var reports = new List<InferenceReport>();
         foreach (var batchSize in InferenceBatchSizes)
         {
             model.LoadSyntheticBatch(batchSize);
+
+            // Warmup iterations prime JIT compilation and tensor internals before
+            // steady-state measurements are recorded.
             var warmup = new List<double>();
             for (var i = 0; i < options.WarmupIterations; i++)
             {
@@ -124,6 +142,9 @@ internal sealed class BenchmarkRunner(BenchmarkOptions options)
             var peakBefore = GC.GetTotalMemory(forceFullCollection: true) / 1024d / 1024d;
             var steady = new List<double>();
             var peak = peakBefore;
+
+            // Steady-state iterations collect forward-pass timings and track the
+            // highest observed managed memory footprint for this batch size.
             for (var i = 0; i < options.InferenceIterations; i++)
             {
                 var timer = Stopwatch.StartNew();
@@ -196,6 +217,8 @@ internal sealed class AiDotNetTensorModel : IBenchmarkModel
 
     public void LoadSyntheticBatch(int batchSize)
     {
+        // Generate deterministic pseudo-random inputs that mimic a real batch
+        // without requiring benchmark data files.
         _batchSize = batchSize;
         var inputWidth = _widths[0];
         var input = new float[batchSize * inputWidth];
@@ -205,6 +228,8 @@ internal sealed class AiDotNetTensorModel : IBenchmarkModel
 
     public void Forward()
     {
+        // Run the model as a stack of matrix multiplications with ReLU activation
+        // between hidden layers, leaving the final tensor available to Backward.
         var current = _input;
         for (var layer = 0; layer < _weights.Count; layer++)
         {
@@ -231,6 +256,8 @@ internal sealed class AiDotNetTensorModel : IBenchmarkModel
 
     public void Step()
     {
+        // Apply a tiny deterministic weight decay and rebuild tensor wrappers so
+        // the next pass observes the updated backing buffers.
         for (var layer = 0; layer < _weightBuffers.Count; layer++)
         {
             var weights = _weightBuffers[layer];
@@ -251,6 +278,8 @@ internal sealed class ResourceMonitor : IDisposable
 
     private ResourceMonitor()
     {
+        // Sample resident set size in the background throughout the training run;
+        // Dispose stops this loop once the caller has collected the summary.
         _task = Task.Run(async () =>
         {
             while (!_cts.IsCancellationRequested)
@@ -280,6 +309,8 @@ internal static class NvidiaSmi
     {
         try
         {
+            // Query nvidia-smi opportunistically so systems without NVIDIA GPUs
+            // can still complete benchmarks with a null GPU sample.
             using var process = Process.Start(new ProcessStartInfo
             {
                 FileName = "nvidia-smi",
@@ -301,6 +332,8 @@ internal static class AiDotNetProbe
 {
     public static object Describe()
     {
+        // Report the loaded AiDotNet assembly metadata and a small probe of neural
+        // model-related types to help identify what package implementation ran.
         var assembly = typeof(AiModelBuilder<,,>).Assembly;
         if (assembly is null) return new { loaded = false };
         var neuralTypes = assembly.GetTypes()
