@@ -53,6 +53,29 @@ python -m venv .venv
 Install the PyTorch wheel that matches your hardware first if you need a specific
 CUDA build: <https://pytorch.org/get-started/locally/>.
 
+
+## Web API
+
+The project also exposes a FastAPI web API with controller-style routers. Start
+the API from the `pytorch-benchmarks/` directory after installing the package:
+
+```bash
+pytorch-bench-api
+```
+
+You can also run it directly with Uvicorn:
+
+```bash
+python -m uvicorn pytorch_benchmarks.api:app --host 0.0.0.0 --port 8000
+```
+
+The first controller endpoint is a regression health check:
+
+```bash
+curl http://localhost:8000/api/Regression/Test
+# ping
+```
+
 ## Run
 
 ```bash

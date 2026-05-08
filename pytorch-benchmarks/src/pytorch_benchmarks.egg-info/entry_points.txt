@@ -1,2 +1,3 @@
 [console_scripts]
 pytorch-bench = pytorch_benchmarks.__main__:main
+pytorch-bench-api = pytorch_benchmarks.server:main

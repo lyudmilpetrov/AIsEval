@@ -10,10 +10,13 @@ requires-python = ">=3.10"
 dependencies = [
   "torch>=2.2",
   "psutil>=5.9",
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.27",
 ]
 
 [project.scripts]
 pytorch-bench = "pytorch_benchmarks.__main__:main"
+pytorch-bench-api = "pytorch_benchmarks.server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
