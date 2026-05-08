@@ -1,12 +1,37 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "C:\\Users\\ljudm\\Documents\\Work\\AIsEval\\",
-  "Documents": [],
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{8ACDE0AA-CBB7-5A9B-E1F7-7F53E0D1D1BF}|aidotnet-benchmarks\\AiDotNetBenchmarks.csproj|c:\\users\\ljudm\\documents\\work\\aiseval\\aidotnet-benchmarks\\src\\aidotnetbenchmarks\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{8ACDE0AA-CBB7-5A9B-E1F7-7F53E0D1D1BF}|aidotnet-benchmarks\\AiDotNetBenchmarks.csproj|solutionrelative:aidotnet-benchmarks\\src\\aidotnetbenchmarks\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
       "VerticalTabListWidth": 256,
-      "DocumentGroups": []
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "Program.cs",
+              "DocumentMoniker": "C:\\Users\\ljudm\\Documents\\Work\\AIsEval\\aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Program.cs",
+              "RelativeDocumentMoniker": "aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Program.cs",
+              "ToolTip": "C:\\Users\\ljudm\\Documents\\Work\\AIsEval\\aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Program.cs",
+              "RelativeToolTip": "aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Program.cs",
+              "ViewState": "AgIAAM0AAAAAAAAAAAAAANUAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-08T19:05:02.452Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
     }
   ]
 }
