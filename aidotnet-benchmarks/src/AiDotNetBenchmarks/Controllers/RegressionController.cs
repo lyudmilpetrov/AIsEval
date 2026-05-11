@@ -15,28 +15,31 @@ public sealed class RegressionController : ControllerBase
     [HttpGet("Test")]
     public ActionResult<string> Test() => "ping";
 
+    [HttpPost("Predict")]
     [HttpPost("SimpleRegression")]
     [RequestSizeLimit(long.MaxValue)]
-    // api/Regression/SimpleRegression?UseGPU=false
     public async Task<ActionResult<CsvRegressionResponse>> SimpleRegression([FromQuery] bool UseGPU = false)
     {
         if (!Request.HasFormContentType)
         {
             return BadRequest(new
             {
-                error = "This endpoint requires multipart/form-data with CSV files named features.csv and tests.csv, or form fields named features and tests."
+                error = "No multipart/form-data body was received. In Postman, remove any manually configured Content-Type header, keep Body set to form-data, reselect both CSV files if a yellow warning icon is shown, and send fields named features and tests.",
+                receivedContentType = Request.ContentType ?? "<missing>"
             });
         }
 
         var form = await Request.ReadFormAsync(HttpContext.RequestAborted);
-        var featuresFile = FindCsvFile(form.Files, "features", "features.csv");
-        var testsFile = FindCsvFile(form.Files, "tests", "tests.csv");
+        var featuresInput = FindCsvInput(form, "features", "features.csv");
+        var testsInput = FindCsvInput(form, "tests", "tests.csv");
 
-        if (featuresFile is null || testsFile is null)
+        if (featuresInput is null || testsInput is null)
         {
             return BadRequest(new
             {
-                error = "Upload multipart/form-data files named features.csv and tests.csv, or use form fields named features and tests."
+                error = "Upload multipart/form-data files named features.csv and tests.csv, or paste CSV text into form fields named features and tests. In Postman, yellow warning icons beside selected files mean the files must be reselected before sending.",
+                receivedFiles = form.Files.Select(file => new { field = file.Name, fileName = file.FileName }).ToArray(),
+                receivedFields = form.Keys.ToArray()
             });
         }
 
@@ -44,8 +47,8 @@ public sealed class RegressionController : ControllerBase
         List<double[]> testRows;
         try
         {
-            trainingRows = await CsvRegressionReader.ReadRowsAsync(featuresFile, HttpContext.RequestAborted);
-            testRows = await CsvRegressionReader.ReadRowsAsync(testsFile, HttpContext.RequestAborted);
+            trainingRows = await CsvRegressionReader.ReadRowsAsync(featuresInput, HttpContext.RequestAborted);
+            testRows = await CsvRegressionReader.ReadRowsAsync(testsInput, HttpContext.RequestAborted);
         }
         catch (FormatException exception)
         {
@@ -148,12 +151,48 @@ public sealed class RegressionController : ControllerBase
         return matrix;
     }
 
-    private static IFormFile? FindCsvFile(IFormFileCollection files, string fieldName, string fileName)
+    private static CsvRegressionInput? FindCsvInput(IFormCollection form, string fieldName, string fileName)
     {
-        return files.FirstOrDefault(file => string.Equals(file.Name, fieldName, StringComparison.OrdinalIgnoreCase))
-            ?? files.FirstOrDefault(file => string.Equals(file.Name, fileName, StringComparison.OrdinalIgnoreCase))
-            ?? files.FirstOrDefault(file => string.Equals(file.FileName, fileName, StringComparison.OrdinalIgnoreCase));
+        var file = form.Files.FirstOrDefault(file => string.Equals(file.Name, fieldName, StringComparison.OrdinalIgnoreCase))
+            ?? form.Files.FirstOrDefault(file => string.Equals(file.Name, fileName, StringComparison.OrdinalIgnoreCase))
+            ?? form.Files.FirstOrDefault(file => string.Equals(file.FileName, fileName, StringComparison.OrdinalIgnoreCase));
+
+        if (file is not null)
+        {
+            return CsvRegressionInput.FromFile(file);
+        }
+
+        if (TryFindCsvText(form, fieldName, fileName, out var csvText))
+        {
+            return CsvRegressionInput.FromText(fileName, csvText);
+        }
+
+        return null;
     }
+
+    private static bool TryFindCsvText(IFormCollection form, string fieldName, string fileName, out string csvText)
+    {
+        foreach (var key in new[] { fieldName, fileName })
+        {
+            if (form.TryGetValue(key, out var values))
+            {
+                csvText = values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
+                return !string.IsNullOrWhiteSpace(csvText);
+            }
+        }
+
+        csvText = string.Empty;
+        return false;
+    }
+}
+
+internal sealed record CsvRegressionInput(string FileName, IFormFile? File, string? Content)
+{
+    public static CsvRegressionInput FromFile(IFormFile file) =>
+        new(file.FileName, file, null);
+
+    public static CsvRegressionInput FromText(string fileName, string content) =>
+        new(fileName, null, content);
 }
 
 public sealed record CsvRegressionResponse(
@@ -170,17 +209,27 @@ public sealed record CsvPrediction(int RowIndex, double Prediction);
 
 internal static class CsvRegressionReader
 {
-    public static async Task<List<double[]>> ReadRowsAsync(IFormFile file, CancellationToken cancellationToken)
+    public static async Task<List<double[]>> ReadRowsAsync(CsvRegressionInput input, CancellationToken cancellationToken)
     {
-        await using var stream = file.OpenReadStream();
-        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        if (input.File is not null)
+        {
+            await using var stream = input.File.OpenReadStream();
+            using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+            return await ReadRowsAsync(reader, input.FileName, cancellationToken);
+        }
+
+        using var stringReader = new StringReader(input.Content ?? string.Empty);
+        return await ReadRowsAsync(stringReader, input.FileName, cancellationToken);
+    }
+
+    private static async Task<List<double[]>> ReadRowsAsync(TextReader reader, string fileName, CancellationToken cancellationToken)
+    {
         var rows = new List<double[]>();
         var firstDataLine = true;
 
-        while (!reader.EndOfStream)
+        while (await reader.ReadLineAsync(cancellationToken) is { } line)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var line = await reader.ReadLineAsync(cancellationToken);
             if (string.IsNullOrWhiteSpace(line)) continue;
 
             var fields = SplitCsvLine(line);
@@ -199,7 +248,7 @@ internal static class CsvRegressionReader
                 continue;
             }
 
-            throw new FormatException($"CSV file '{file.FileName}' contains a non-numeric data row: {line}");
+            throw new FormatException($"CSV file '{fileName}' contains a non-numeric data row: {line}");
         }
 
         return rows;
