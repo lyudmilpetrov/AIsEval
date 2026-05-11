@@ -16,9 +16,10 @@ python -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -e .
-python -m pip install uvicorn[standard] fastapi
 ```
-to exit pyton environment, run `deactivate` in the terminal.
+
+To exit the Python environment, run `deactivate` in the terminal.
+
 ### Windows Git Bash
 
 ```bash
@@ -26,7 +27,6 @@ python -m venv .venv
 source .venv/Scripts/activate
 python -m pip install --upgrade pip
 python -m pip install -e .
-python -m pip install uvicorn[standard] fastapi
 ```
 
 ### Windows PowerShell
@@ -69,6 +69,17 @@ You can also run it directly with Uvicorn:
 
 ```bash
 python -m uvicorn pytorch_benchmarks.api:app --host 0.0.0.0 --port 8000
+```
+
+The editable install pulls in FastAPI, Uvicorn, and `python-multipart`. If a
+manual or partial environment setup raises `The python-multipart library must be
+installed to use form parsing`, run this command inside the same active virtual
+environment that starts Uvicorn:
+
+```bash
+python -m pip install -e .
+# or, as a targeted repair:
+python -m pip install python-multipart
 ```
 
 The first controller endpoint is a regression health check:
@@ -141,9 +152,10 @@ The JSON report includes per-model metrics for:
 
 ### CSV Regression Prediction Endpoint
 
-`POST /api/Regression/Predict?UseGPU=false` trains a native PyTorch linear
-regression model from uploaded CSV data and returns JSON predictions. Send a
-multipart request with:
+`POST /api/Regression/SimpleRegression?UseGPU=false` trains a native PyTorch
+linear regression model from uploaded CSV data and returns JSON predictions.
+`POST /api/Regression/Predict?UseGPU=false` is also supported as a compatibility
+alias. Send a multipart request with:
 
 - `features`: `features.csv`, where each row contains numeric feature columns
   followed by the numeric target value in the last column.
@@ -155,7 +167,7 @@ only to match the AiDotNet regression endpoint; `UseGPU=true` is echoed as
 `gpuRequested: true`, but `gpuUsed` remains `false`.
 
 ```bash
-curl -X POST "http://localhost:8000/api/Regression/Predict?UseGPU=false" \
+curl -X POST "http://localhost:8000/api/Regression/SimpleRegression?UseGPU=false" \
   -F "features=@features.csv" \
   -F "tests=@tests.csv"
 ```

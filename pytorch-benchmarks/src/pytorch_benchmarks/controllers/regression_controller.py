@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import io
+from dataclasses import dataclass
 from typing import Annotated
 
 import torch
@@ -33,32 +34,46 @@ class CsvFormatError(ValueError):
     pass
 
 
+@dataclass(frozen=True)
+class CsvRegressionInput:
+    filename: str
+    upload: UploadFile | None = None
+    text: str | None = None
+
+    async def read(self) -> bytes:
+        if self.upload is not None:
+            return await self.upload.read()
+        return (self.text or "").encode("utf-8")
+
+
 @router.get("/Test", response_class=PlainTextResponse)
 def test() -> str:
     return "ping"
 
 
+@router.post("/Predict", response_model=CsvRegressionResponse)
 @router.post("/SimpleRegression", response_model=CsvRegressionResponse)
 async def predict(
     request: Request,
     use_gpu: Annotated[bool, Query(alias="UseGPU")] = False,
 ) -> CsvRegressionResponse | JSONResponse:
-    form = await request.form()
-    features_file = _find_csv_file(form, "features", "features.csv")
-    tests_file = _find_csv_file(form, "tests", "tests.csv")
+    form_or_error = await _read_request_form(request)
+    if isinstance(form_or_error, JSONResponse):
+        return form_or_error
 
-    if features_file is None or tests_file is None:
+    features_input = _find_csv_input(form_or_error, "features", "features.csv")
+    tests_input = _find_csv_input(form_or_error, "tests", "tests.csv")
+
+    if features_input is None or tests_input is None:
         return _bad_request(
-            "Upload multipart/form-data files named features.csv and tests.csv, or use form fields named features and tests."
+            "Upload multipart/form-data files named features.csv and tests.csv, or paste CSV text into form fields named features and tests."
         )
 
     try:
         training_rows = _read_numeric_csv(
-            await features_file.read(), features_file.filename or "features.csv"
+            await features_input.read(), features_input.filename
         )
-        test_rows = _read_numeric_csv(
-            await tests_file.read(), tests_file.filename or "tests.csv"
-        )
+        test_rows = _read_numeric_csv(await tests_input.read(), tests_input.filename)
     except CsvFormatError as exc:
         return _bad_request(str(exc))
 
@@ -116,23 +131,54 @@ async def predict(
     )
 
 
+async def _read_request_form(request: Request) -> FormData | JSONResponse:
+    if not _has_form_content_type(request):
+        return _bad_request(
+            "No multipart/form-data body was received. Remove any manually configured Content-Type header, send Body as form-data, and use fields named features and tests."
+        )
+
+    try:
+        return await request.form()
+    except AssertionError as exc:
+        if "python-multipart" in str(exc):
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "error": "The python-multipart package is required for multipart/form-data uploads. Install the project with `python -m pip install -e .` from pytorch-benchmarks, or run `python -m pip install python-multipart` in the active virtual environment."
+                },
+            )
+        raise
+
+
+def _has_form_content_type(request: Request) -> bool:
+    content_type = request.headers.get("content-type", "").lower()
+    return content_type.startswith("multipart/form-data") or content_type.startswith(
+        "application/x-www-form-urlencoded"
+    )
+
+
 def _bad_request(message: str) -> JSONResponse:
     return JSONResponse(status_code=400, content={"error": message})
 
 
-def _find_csv_file(
+def _find_csv_input(
     form: FormData, field_name: str, file_name: str
-) -> UploadFile | None:
+) -> CsvRegressionInput | None:
     uploads: list[tuple[str, UploadFile]] = [
         (key, value)
         for key, value in form.multi_items()
         if isinstance(value, UploadFile)
     ]
+    fields: list[tuple[str, str]] = [
+        (key, value)
+        for key, value in form.multi_items()
+        if isinstance(value, str) and value.strip()
+    ]
 
     field_name_lower = field_name.lower()
     file_name_lower = file_name.lower()
 
-    return (
+    upload = (
         next(
             (upload for key, upload in uploads if key.lower() == field_name_lower), None
         )
@@ -148,6 +194,20 @@ def _find_csv_file(
             None,
         )
     )
+    if upload is not None:
+        return CsvRegressionInput(upload.filename or file_name, upload=upload)
+
+    text = next(
+        (value for key, value in fields if key.lower() == field_name_lower), None
+    )
+    if text is None:
+        text = next(
+            (value for key, value in fields if key.lower() == file_name_lower), None
+        )
+    if text is not None:
+        return CsvRegressionInput(file_name, text=text)
+
+    return None
 
 
 def _predict_with_torch_least_squares(
