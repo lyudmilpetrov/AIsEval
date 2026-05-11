@@ -12,22 +12,36 @@ namespace AiDotNetBenchmarks.Controllers;
 [Route("api/[controller]")]
 public sealed class RegressionController : ControllerBase
 {
+    private const int MinimumRowsForAiDotNetValidationSplit = 7;
+
     [HttpGet("Test")]
     public ActionResult<string> Test() => "ping";
 
     [HttpPost("Predict")]
+    [HttpPost("SimpleRegression")]
     [RequestSizeLimit(long.MaxValue)]
-    public async Task<ActionResult<CsvRegressionResponse>> Predict([FromQuery] bool UseGPU = false)
+    public async Task<ActionResult<CsvRegressionResponse>> SimpleRegression([FromQuery] bool UseGPU = false)
     {
-        var form = await Request.ReadFormAsync(HttpContext.RequestAborted);
-        var featuresFile = FindCsvFile(form.Files, "features", "features.csv");
-        var testsFile = FindCsvFile(form.Files, "tests", "tests.csv");
-
-        if (featuresFile is null || testsFile is null)
+        if (!Request.HasFormContentType)
         {
             return BadRequest(new
             {
-                error = "Upload multipart/form-data files named features.csv and tests.csv, or use form fields named features and tests."
+                error = "No multipart/form-data body was received. In Postman, remove any manually configured Content-Type header, keep Body set to form-data, reselect both CSV files if a yellow warning icon is shown, and send fields named features and tests.",
+                receivedContentType = Request.ContentType ?? "<missing>"
+            });
+        }
+
+        var form = await Request.ReadFormAsync(HttpContext.RequestAborted);
+        var featuresInput = FindCsvInput(form, "features", "features.csv");
+        var testsInput = FindCsvInput(form, "tests", "tests.csv");
+
+        if (featuresInput is null || testsInput is null)
+        {
+            return BadRequest(new
+            {
+                error = "Upload multipart/form-data files named features.csv and tests.csv, or paste CSV text into form fields named features and tests. In Postman, yellow warning icons beside selected files mean the files must be reselected before sending.",
+                receivedFiles = form.Files.Select(file => new { field = file.Name, fileName = file.FileName }).ToArray(),
+                receivedFields = form.Keys.ToArray()
             });
         }
 
@@ -35,8 +49,8 @@ public sealed class RegressionController : ControllerBase
         List<double[]> testRows;
         try
         {
-            trainingRows = await CsvRegressionReader.ReadRowsAsync(featuresFile, HttpContext.RequestAborted);
-            testRows = await CsvRegressionReader.ReadRowsAsync(testsFile, HttpContext.RequestAborted);
+            trainingRows = await CsvRegressionReader.ReadRowsAsync(featuresInput, HttpContext.RequestAborted);
+            testRows = await CsvRegressionReader.ReadRowsAsync(testsInput, HttpContext.RequestAborted);
         }
         catch (FormatException exception)
         {
@@ -69,21 +83,9 @@ public sealed class RegressionController : ControllerBase
             return BadRequest(new { error = $"Every tests.csv row must contain exactly {featureCount} feature columns." });
         }
 
-        var features = ToFeatureArray(trainingRows, featureCount);
-        var labels = ToLabelArray(trainingRows, featureCount);
-
-        // Build using AiModelBuilder facade pattern, matching the AiDotNet simple
-        // regression quick-start while feeding it the uploaded CSV training data.
-        var loader = DataLoaders.FromArrays(features, labels);
-        var result = await new AiModelBuilder<double, Matrix<double>, Vector<double>>()
-            .ConfigureDataLoader(loader)
-            .ConfigureModel(new SimpleRegression<double>())
-            .BuildAsync();
-
-        // Make predictions - AiModelResult exposes Predict() directly and hides
-        // the underlying model implementation details.
-        var testData = ToMatrix(testRows, featureCount);
-        var predictedValues = result.Predict(testData);
+        var predictedValues = trainingRows.Count >= MinimumRowsForAiDotNetValidationSplit
+            ? await PredictWithAiDotNetAsync(trainingRows, testRows, featureCount, HttpContext.RequestAborted)
+            : PredictWithLeastSquares(trainingRows, testRows, featureCount);
         var predictions = Enumerable.Range(0, testRows.Count)
             .Select(index => new CsvPrediction(index, predictedValues[index]))
             .ToArray();
@@ -99,6 +101,148 @@ public sealed class RegressionController : ControllerBase
             predictions));
     }
 
+
+    private static async Task<Vector<double>> PredictWithAiDotNetAsync(
+        IReadOnlyList<double[]> trainingRows,
+        IReadOnlyList<double[]> testRows,
+        int featureCount,
+        CancellationToken cancellationToken)
+    {
+        var features = ToFeatureArray(trainingRows, featureCount);
+        var labels = ToLabelArray(trainingRows, featureCount);
+
+        // AiDotNet currently performs an internal 70/15/15 train/validation/test
+        // split. Datasets with fewer than seven rows produce a zero-row
+        // validation matrix, so small CSV uploads use the least-squares fallback
+        // below instead of entering the builder path.
+        var loader = DataLoaders.FromArrays(features, labels);
+        var result = await new AiModelBuilder<double, Matrix<double>, Vector<double>>()
+            .ConfigureDataLoader(loader)
+            .ConfigureModel(new SimpleRegression<double>())
+            .BuildAsync(cancellationToken);
+
+        var testData = ToMatrix(testRows, featureCount);
+        return result.Predict(testData);
+    }
+
+    private static Vector<double> PredictWithLeastSquares(
+        IReadOnlyList<double[]> trainingRows,
+        IReadOnlyList<double[]> testRows,
+        int featureCount)
+    {
+        var coefficients = FitLeastSquares(trainingRows, featureCount);
+        var predictions = new Vector<double>(testRows.Count);
+
+        for (var rowIndex = 0; rowIndex < testRows.Count; rowIndex++)
+        {
+            var prediction = coefficients[0];
+            for (var featureIndex = 0; featureIndex < featureCount; featureIndex++)
+            {
+                prediction += coefficients[featureIndex + 1] * testRows[rowIndex][featureIndex];
+            }
+
+            predictions[rowIndex] = prediction;
+        }
+
+        return predictions;
+    }
+
+    private static double[] FitLeastSquares(IReadOnlyList<double[]> rows, int featureCount)
+    {
+        var coefficientCount = featureCount + 1;
+        var normalMatrix = new double[coefficientCount, coefficientCount];
+        var normalVector = new double[coefficientCount];
+
+        foreach (var row in rows)
+        {
+            var target = row[featureCount];
+            for (var i = 0; i < coefficientCount; i++)
+            {
+                var left = i == 0 ? 1d : row[i - 1];
+                normalVector[i] += left * target;
+
+                for (var j = 0; j < coefficientCount; j++)
+                {
+                    var right = j == 0 ? 1d : row[j - 1];
+                    normalMatrix[i, j] += left * right;
+                }
+            }
+        }
+
+        return SolveLinearSystem(normalMatrix, normalVector);
+    }
+
+    private static double[] SolveLinearSystem(double[,] matrix, double[] vector)
+    {
+        const double Ridge = 1e-8;
+        const double PivotTolerance = 1e-12;
+
+        var size = vector.Length;
+        var augmented = new double[size, size + 1];
+
+        for (var row = 0; row < size; row++)
+        {
+            for (var column = 0; column < size; column++)
+            {
+                augmented[row, column] = matrix[row, column] + (row == column ? Ridge : 0d);
+            }
+
+            augmented[row, size] = vector[row];
+        }
+
+        for (var pivot = 0; pivot < size; pivot++)
+        {
+            var pivotRow = pivot;
+            var pivotMagnitude = Math.Abs(augmented[pivot, pivot]);
+            for (var row = pivot + 1; row < size; row++)
+            {
+                var candidate = Math.Abs(augmented[row, pivot]);
+                if (candidate > pivotMagnitude)
+                {
+                    pivotMagnitude = candidate;
+                    pivotRow = row;
+                }
+            }
+
+            if (pivotRow != pivot)
+            {
+                for (var column = pivot; column <= size; column++)
+                {
+                    (augmented[pivot, column], augmented[pivotRow, column]) =
+                        (augmented[pivotRow, column], augmented[pivot, column]);
+                }
+            }
+
+            if (Math.Abs(augmented[pivot, pivot]) < PivotTolerance)
+            {
+                augmented[pivot, pivot] = PivotTolerance;
+            }
+
+            var pivotValue = augmented[pivot, pivot];
+            for (var row = pivot + 1; row < size; row++)
+            {
+                var factor = augmented[row, pivot] / pivotValue;
+                for (var column = pivot; column <= size; column++)
+                {
+                    augmented[row, column] -= factor * augmented[pivot, column];
+                }
+            }
+        }
+
+        var solution = new double[size];
+        for (var row = size - 1; row >= 0; row--)
+        {
+            var sum = augmented[row, size];
+            for (var column = row + 1; column < size; column++)
+            {
+                sum -= augmented[row, column] * solution[column];
+            }
+
+            solution[row] = sum / augmented[row, row];
+        }
+
+        return solution;
+    }
 
     private static double[,] ToFeatureArray(IReadOnlyList<double[]> rows, int featureCount)
     {
@@ -139,12 +283,48 @@ public sealed class RegressionController : ControllerBase
         return matrix;
     }
 
-    private static IFormFile? FindCsvFile(IFormFileCollection files, string fieldName, string fileName)
+    private static CsvRegressionInput? FindCsvInput(IFormCollection form, string fieldName, string fileName)
     {
-        return files.FirstOrDefault(file => string.Equals(file.Name, fieldName, StringComparison.OrdinalIgnoreCase))
-            ?? files.FirstOrDefault(file => string.Equals(file.Name, fileName, StringComparison.OrdinalIgnoreCase))
-            ?? files.FirstOrDefault(file => string.Equals(file.FileName, fileName, StringComparison.OrdinalIgnoreCase));
+        var file = form.Files.FirstOrDefault(file => string.Equals(file.Name, fieldName, StringComparison.OrdinalIgnoreCase))
+            ?? form.Files.FirstOrDefault(file => string.Equals(file.Name, fileName, StringComparison.OrdinalIgnoreCase))
+            ?? form.Files.FirstOrDefault(file => string.Equals(file.FileName, fileName, StringComparison.OrdinalIgnoreCase));
+
+        if (file is not null)
+        {
+            return CsvRegressionInput.FromFile(file);
+        }
+
+        if (TryFindCsvText(form, fieldName, fileName, out var csvText))
+        {
+            return CsvRegressionInput.FromText(fileName, csvText);
+        }
+
+        return null;
     }
+
+    private static bool TryFindCsvText(IFormCollection form, string fieldName, string fileName, out string csvText)
+    {
+        foreach (var key in new[] { fieldName, fileName })
+        {
+            if (form.TryGetValue(key, out var values))
+            {
+                csvText = values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
+                return !string.IsNullOrWhiteSpace(csvText);
+            }
+        }
+
+        csvText = string.Empty;
+        return false;
+    }
+}
+
+internal sealed record CsvRegressionInput(string FileName, IFormFile? File, string? Content)
+{
+    public static CsvRegressionInput FromFile(IFormFile file) =>
+        new(file.FileName, file, null);
+
+    public static CsvRegressionInput FromText(string fileName, string content) =>
+        new(fileName, null, content);
 }
 
 public sealed record CsvRegressionResponse(
@@ -161,17 +341,27 @@ public sealed record CsvPrediction(int RowIndex, double Prediction);
 
 internal static class CsvRegressionReader
 {
-    public static async Task<List<double[]>> ReadRowsAsync(IFormFile file, CancellationToken cancellationToken)
+    public static async Task<List<double[]>> ReadRowsAsync(CsvRegressionInput input, CancellationToken cancellationToken)
     {
-        await using var stream = file.OpenReadStream();
-        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        if (input.File is not null)
+        {
+            await using var stream = input.File.OpenReadStream();
+            using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+            return await ReadRowsAsync(reader, input.FileName, cancellationToken);
+        }
+
+        using var stringReader = new StringReader(input.Content ?? string.Empty);
+        return await ReadRowsAsync(stringReader, input.FileName, cancellationToken);
+    }
+
+    private static async Task<List<double[]>> ReadRowsAsync(TextReader reader, string fileName, CancellationToken cancellationToken)
+    {
         var rows = new List<double[]>();
         var firstDataLine = true;
 
-        while (!reader.EndOfStream)
+        while (await reader.ReadLineAsync(cancellationToken) is { } line)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var line = await reader.ReadLineAsync(cancellationToken);
             if (string.IsNullOrWhiteSpace(line)) continue;
 
             var fields = SplitCsvLine(line);
@@ -190,7 +380,7 @@ internal static class CsvRegressionReader
                 continue;
             }
 
-            throw new FormatException($"CSV file '{file.FileName}' contains a non-numeric data row: {line}");
+            throw new FormatException($"CSV file '{fileName}' contains a non-numeric data row: {line}");
         }
 
         return rows;

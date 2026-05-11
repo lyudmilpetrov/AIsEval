@@ -28,22 +28,36 @@ The runner records:
 
 ## CSV Regression API
 
-The web API exposes `POST /api/Regression/Predict?UseGPU=false` for the
-AiDotNet quick-start style regression workflow. Upload a multipart request with:
+The web API exposes `POST /api/Regression/SimpleRegression?UseGPU=false` for the
+AiDotNet quick-start style regression workflow. The legacy
+`POST /api/Regression/Predict?UseGPU=false` route is also supported. Upload a
+`multipart/form-data` request with:
 
-- `features`: `features.csv`, where each row contains numeric feature columns
-  followed by the numeric target value in the last column.
-- `tests`: `tests.csv`, where each row contains only the numeric feature columns
-  to predict.
+- `features`: upload `features.csv`, where each row contains numeric feature
+  columns followed by the numeric target value in the last column.
+- `tests`: upload `tests.csv`, where each row contains only the numeric feature
+  columns to predict.
+
+For quick Postman tests, the same `features` and `tests` form-data keys may be
+sent as `Text` values containing pasted CSV content instead of file uploads.
 
 Both CSV files may include a single header row. The endpoint currently runs on
 CPU only; `UseGPU=true` is echoed as `gpuRequested: true`, but `gpuUsed`
-remains `false`.
+remains `false`. Small training uploads with fewer than seven data rows use a
+least-squares prediction path to avoid AiDotNet's internal validation split
+creating an empty validation matrix.
 
 ```bash
-curl -X POST "http://localhost:5000/api/Regression/Predict?UseGPU=false" \
+curl -X POST "http://localhost:5000/api/Regression/SimpleRegression?UseGPU=false" \
   -F "features=@features.csv" \
   -F "tests=@tests.csv"
 ```
+
+If Postman still returns `No multipart/form-data body was received`, check the
+request headers and remove any manually configured `Content-Type` header so
+Postman can generate the required `multipart/form-data; boundary=...` value. A
+yellow warning icon next to a selected file means Postman cannot read that file;
+reselect `features.csv` and `tests.csv`, or switch those rows from `File` to
+`Text` and paste the CSV contents.
 
 The response contains JSON metadata plus one prediction per row in `tests.csv`.
