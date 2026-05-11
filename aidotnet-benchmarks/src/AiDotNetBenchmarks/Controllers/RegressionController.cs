@@ -89,11 +89,14 @@ public sealed class RegressionController : ControllerBase
             return BadRequest(new { error = $"Every tests.csv row must contain exactly {featureCount} feature columns." });
         }
 
+        var features = ToFeatureArray(trainingRows, featureCount);
+        var labels = ToLabelArray(trainingRows, featureCount);
+        var testData = ToMatrix(testRows, featureCount);
         preprocessTimer.Stop();
 
         var inferenceTimer = Stopwatch.StartNew();
         var predictedValues = trainingRows.Count >= MinimumRowsForAiDotNetValidationSplit
-            ? await PredictWithAiDotNetAsync(trainingRows, testRows, featureCount, HttpContext.RequestAborted)
+            ? await PredictWithAiDotNetAsync(features, labels, testData, HttpContext.RequestAborted)
             : PredictWithLeastSquares(trainingRows, testRows, featureCount);
         inferenceTimer.Stop();
 
@@ -104,7 +107,7 @@ public sealed class RegressionController : ControllerBase
         postprocessTimer.Stop();
 
         var totalMs = measurement.ElapsedMilliseconds;
-        var gpu = RegressionGpuProbe.Read();
+        var gpu = UseGPU ? RegressionGpuProbe.Read() : RegressionGpuProbe.Empty();
 
         return Ok(new CsvRegressionResponse(
             predictions,
@@ -152,14 +155,11 @@ public sealed class RegressionController : ControllerBase
         ?? "unknown";
 
     private static async Task<Vector<double>> PredictWithAiDotNetAsync(
-        IReadOnlyList<double[]> trainingRows,
-        IReadOnlyList<double[]> testRows,
-        int featureCount,
+        double[,] features,
+        double[] labels,
+        Matrix<double> testData,
         CancellationToken cancellationToken)
     {
-        var features = ToFeatureArray(trainingRows, featureCount);
-        var labels = ToLabelArray(trainingRows, featureCount);
-
         // AiDotNet currently performs an internal 70/15/15 train/validation/test
         // split. Datasets with fewer than seven rows produce a zero-row
         // validation matrix, so small CSV uploads use the least-squares fallback
@@ -170,7 +170,6 @@ public sealed class RegressionController : ControllerBase
             .ConfigureModel(new SimpleRegression<double>())
             .BuildAsync();
 
-        var testData = ToMatrix(testRows, featureCount);
         return result.Predict(testData);
     }
 
@@ -529,7 +528,7 @@ internal static class RegressionGpuProbe
         }
     }
 
-    private static GpuMetrics Empty() => new(null, null, null, null, null, null, null, null, null, null);
+    public static GpuMetrics Empty() => new(null, null, null, null, null, null, null, null, null, null);
 
     private static double? ParseNullableDouble(string value) =>
         double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) ? parsed : null;
