@@ -38,7 +38,7 @@ def test() -> str:
     return "ping"
 
 
-@router.post("/Predict", response_model=CsvRegressionResponse)
+@router.post("/SimpleRegression", response_model=CsvRegressionResponse)
 async def predict(
     request: Request,
     use_gpu: Annotated[bool, Query(alias="UseGPU")] = False,
