@@ -14,8 +14,7 @@ public sealed class RegressionController : ControllerBase
 {
     [HttpGet("Test")]
     public ActionResult<string> Test() => "ping";
-
-    [HttpPost("Predict")]
+     
     [HttpPost("SimpleRegression")]
     [RequestSizeLimit(long.MaxValue)]
     public async Task<ActionResult<CsvRegressionResponse>> SimpleRegression([FromQuery] bool UseGPU = false)
