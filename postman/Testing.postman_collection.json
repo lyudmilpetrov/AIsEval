@@ -1,0 +1,199 @@
+{
+  "info": {
+    "_postman_id": "310545fc-bb11-4cfa-9458-b2c1ead985f4",
+    "name": "Testing",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "1511217"
+  },
+  "item": [
+    {
+      "name": "AIDotNet",
+      "item": [
+        {
+          "name": "Test",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://localhost:50722/api/Regression/test",
+              "protocol": "https",
+              "host": [
+                "localhost"
+              ],
+              "port": "50722",
+              "path": [
+                "api",
+                "Regression",
+                "test"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "SimpleRegression",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "features",
+                  "type": "file",
+                  "uuid": "7c78a918-9d84-4916-9ecf-409604cdd774",
+                  "src": "/C:/Users/ljudm/Documents/Work/AIsEval/TestData/RegressionTestData/features.csv"
+                },
+                {
+                  "key": "tests",
+                  "type": "file",
+                  "uuid": "f3dff970-f000-49b1-b395-6ab90a67166f",
+                  "src": "/C:/Users/ljudm/Documents/Work/AIsEval/TestData/RegressionTestData/tests.csv"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://localhost:50722/api/Both/SimpleRegression?UseGPU=false",
+              "protocol": "https",
+              "host": [
+                "localhost"
+              ],
+              "port": "50722",
+              "path": [
+                "api",
+                "Both",
+                "SimpleRegression"
+              ],
+              "query": [
+                {
+                  "key": "UseGPU",
+                  "value": "false"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "PyTourch",
+      "item": [
+        {
+          "name": "Test",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/Regression/Test",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8000",
+              "path": [
+                "api",
+                "Regression",
+                "Test"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "SimpleRegression",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "features",
+                  "type": "file",
+                  "uuid": "7c78a918-9d84-4916-9ecf-409604cdd774",
+                  "src": "/C:/Users/ljudm/Documents/Work/AIsEval/TestData/RegressionTestData/features.csv"
+                },
+                {
+                  "key": "tests",
+                  "type": "file",
+                  "uuid": "f3dff970-f000-49b1-b395-6ab90a67166f",
+                  "src": "/C:/Users/ljudm/Documents/Work/AIsEval/TestData/RegressionTestData/tests.csv"
+                }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/Regression/SimpleRegression?UseGPU=false",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8000",
+              "path": [
+                "api",
+                "Regression",
+                "SimpleRegression"
+              ],
+              "query": [
+                {
+                  "key": "UseGPU",
+                  "value": "false"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Both",
+      "item": [
+        {
+          "name": "SimpleRegression",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "features",
+                  "type": "file",
+                  "uuid": "7c78a918-9d84-4916-9ecf-409604cdd774",
+                  "src": "/C:/Users/ljudm/Documents/Work/AIsEval/TestData/RegressionTestData/features.csv"
+                },
+                {
+                  "key": "tests",
+                  "type": "file",
+                  "uuid": "f3dff970-f000-49b1-b395-6ab90a67166f",
+                  "src": "/C:/Users/ljudm/Documents/Work/AIsEval/TestData/RegressionTestData/tests.csv"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://localhost:50722/api/Regression/SimpleRegression?UseGPU=true",
+              "protocol": "https",
+              "host": [
+                "localhost"
+              ],
+              "port": "50722",
+              "path": [
+                "api",
+                "Regression",
+                "SimpleRegression"
+              ],
+              "query": [
+                {
+                  "key": "UseGPU",
+                  "value": "true"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
