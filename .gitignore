@@ -1,3 +1,4 @@
+*.suo
 .vs/
 # Python
 __pycache__/
