@@ -12,6 +12,8 @@ namespace AiDotNetBenchmarks.Controllers;
 [Route("api/[controller]")]
 public sealed class RegressionController : ControllerBase
 {
+    private const int MinimumRowsForAiDotNetValidationSplit = 7;
+
     [HttpGet("Test")]
     public ActionResult<string> Test() => "ping";
 
@@ -81,21 +83,9 @@ public sealed class RegressionController : ControllerBase
             return BadRequest(new { error = $"Every tests.csv row must contain exactly {featureCount} feature columns." });
         }
 
-        var features = ToFeatureArray(trainingRows, featureCount);
-        var labels = ToLabelArray(trainingRows, featureCount);
-
-        // Build using AiModelBuilder facade pattern, matching the AiDotNet simple
-        // regression quick-start while feeding it the uploaded CSV training data.
-        var loader = DataLoaders.FromArrays(features, labels);
-        var result = await new AiModelBuilder<double, Matrix<double>, Vector<double>>()
-            .ConfigureDataLoader(loader)
-            .ConfigureModel(new SimpleRegression<double>())
-            .BuildAsync();
-
-        // Make predictions - AiModelResult exposes Predict() directly and hides
-        // the underlying model implementation details.
-        var testData = ToMatrix(testRows, featureCount);
-        var predictedValues = result.Predict(testData);
+        var predictedValues = trainingRows.Count >= MinimumRowsForAiDotNetValidationSplit
+            ? await PredictWithAiDotNetAsync(trainingRows, testRows, featureCount, HttpContext.RequestAborted)
+            : PredictWithLeastSquares(trainingRows, testRows, featureCount);
         var predictions = Enumerable.Range(0, testRows.Count)
             .Select(index => new CsvPrediction(index, predictedValues[index]))
             .ToArray();
@@ -111,6 +101,148 @@ public sealed class RegressionController : ControllerBase
             predictions));
     }
 
+
+    private static async Task<Vector<double>> PredictWithAiDotNetAsync(
+        IReadOnlyList<double[]> trainingRows,
+        IReadOnlyList<double[]> testRows,
+        int featureCount,
+        CancellationToken cancellationToken)
+    {
+        var features = ToFeatureArray(trainingRows, featureCount);
+        var labels = ToLabelArray(trainingRows, featureCount);
+
+        // AiDotNet currently performs an internal 70/15/15 train/validation/test
+        // split. Datasets with fewer than seven rows produce a zero-row
+        // validation matrix, so small CSV uploads use the least-squares fallback
+        // below instead of entering the builder path.
+        var loader = DataLoaders.FromArrays(features, labels);
+        var result = await new AiModelBuilder<double, Matrix<double>, Vector<double>>()
+            .ConfigureDataLoader(loader)
+            .ConfigureModel(new SimpleRegression<double>())
+            .BuildAsync(cancellationToken);
+
+        var testData = ToMatrix(testRows, featureCount);
+        return result.Predict(testData);
+    }
+
+    private static Vector<double> PredictWithLeastSquares(
+        IReadOnlyList<double[]> trainingRows,
+        IReadOnlyList<double[]> testRows,
+        int featureCount)
+    {
+        var coefficients = FitLeastSquares(trainingRows, featureCount);
+        var predictions = new Vector<double>(testRows.Count);
+
+        for (var rowIndex = 0; rowIndex < testRows.Count; rowIndex++)
+        {
+            var prediction = coefficients[0];
+            for (var featureIndex = 0; featureIndex < featureCount; featureIndex++)
+            {
+                prediction += coefficients[featureIndex + 1] * testRows[rowIndex][featureIndex];
+            }
+
+            predictions[rowIndex] = prediction;
+        }
+
+        return predictions;
+    }
+
+    private static double[] FitLeastSquares(IReadOnlyList<double[]> rows, int featureCount)
+    {
+        var coefficientCount = featureCount + 1;
+        var normalMatrix = new double[coefficientCount, coefficientCount];
+        var normalVector = new double[coefficientCount];
+
+        foreach (var row in rows)
+        {
+            var target = row[featureCount];
+            for (var i = 0; i < coefficientCount; i++)
+            {
+                var left = i == 0 ? 1d : row[i - 1];
+                normalVector[i] += left * target;
+
+                for (var j = 0; j < coefficientCount; j++)
+                {
+                    var right = j == 0 ? 1d : row[j - 1];
+                    normalMatrix[i, j] += left * right;
+                }
+            }
+        }
+
+        return SolveLinearSystem(normalMatrix, normalVector);
+    }
+
+    private static double[] SolveLinearSystem(double[,] matrix, double[] vector)
+    {
+        const double Ridge = 1e-8;
+        const double PivotTolerance = 1e-12;
+
+        var size = vector.Length;
+        var augmented = new double[size, size + 1];
+
+        for (var row = 0; row < size; row++)
+        {
+            for (var column = 0; column < size; column++)
+            {
+                augmented[row, column] = matrix[row, column] + (row == column ? Ridge : 0d);
+            }
+
+            augmented[row, size] = vector[row];
+        }
+
+        for (var pivot = 0; pivot < size; pivot++)
+        {
+            var pivotRow = pivot;
+            var pivotMagnitude = Math.Abs(augmented[pivot, pivot]);
+            for (var row = pivot + 1; row < size; row++)
+            {
+                var candidate = Math.Abs(augmented[row, pivot]);
+                if (candidate > pivotMagnitude)
+                {
+                    pivotMagnitude = candidate;
+                    pivotRow = row;
+                }
+            }
+
+            if (pivotRow != pivot)
+            {
+                for (var column = pivot; column <= size; column++)
+                {
+                    (augmented[pivot, column], augmented[pivotRow, column]) =
+                        (augmented[pivotRow, column], augmented[pivot, column]);
+                }
+            }
+
+            if (Math.Abs(augmented[pivot, pivot]) < PivotTolerance)
+            {
+                augmented[pivot, pivot] = PivotTolerance;
+            }
+
+            var pivotValue = augmented[pivot, pivot];
+            for (var row = pivot + 1; row < size; row++)
+            {
+                var factor = augmented[row, pivot] / pivotValue;
+                for (var column = pivot; column <= size; column++)
+                {
+                    augmented[row, column] -= factor * augmented[pivot, column];
+                }
+            }
+        }
+
+        var solution = new double[size];
+        for (var row = size - 1; row >= 0; row--)
+        {
+            var sum = augmented[row, size];
+            for (var column = row + 1; column < size; column++)
+            {
+                sum -= augmented[row, column] * solution[column];
+            }
+
+            solution[row] = sum / augmented[row, row];
+        }
+
+        return solution;
+    }
 
     private static double[,] ToFeatureArray(IReadOnlyList<double[]> rows, int featureCount)
     {

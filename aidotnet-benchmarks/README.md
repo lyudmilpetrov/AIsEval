@@ -43,7 +43,9 @@ sent as `Text` values containing pasted CSV content instead of file uploads.
 
 Both CSV files may include a single header row. The endpoint currently runs on
 CPU only; `UseGPU=true` is echoed as `gpuRequested: true`, but `gpuUsed`
-remains `false`.
+remains `false`. Small training uploads with fewer than seven data rows use a
+least-squares prediction path to avoid AiDotNet's internal validation split
+creating an empty validation matrix.
 
 ```bash
 curl -X POST "http://localhost:5000/api/Regression/SimpleRegression?UseGPU=false" \
