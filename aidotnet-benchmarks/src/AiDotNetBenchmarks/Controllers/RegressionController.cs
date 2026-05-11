@@ -179,7 +179,7 @@ public sealed class RegressionController : ControllerBase
             var result = await new AiModelBuilder<double, Matrix<double>, Vector<double>>()
                 .ConfigureDataLoader(loader)
                 .ConfigureModel(new SimpleRegression<double>())
-                .BuildAsync(cancellationToken);
+                .BuildAsync();
 
             return result.Predict(testData);
         }
@@ -187,7 +187,7 @@ public sealed class RegressionController : ControllerBase
         var multipleRegressionResult = await new AiModelBuilder<double, Matrix<double>, Vector<double>>()
             .ConfigureDataLoader(loader)
             .ConfigureModel(new MultipleRegression<double>())
-            .BuildAsync(cancellationToken);
+            .BuildAsync();
 
         return multipleRegressionResult.Predict(testData);
     }
