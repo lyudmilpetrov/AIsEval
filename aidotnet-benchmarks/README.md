@@ -28,8 +28,10 @@ The runner records:
 
 ## CSV Regression API
 
-The web API exposes `POST /api/Regression/Predict?UseGPU=false` for the
-AiDotNet quick-start style regression workflow. Upload a multipart request with:
+The web API exposes `POST /api/Regression/SimpleRegression?UseGPU=false` for the
+AiDotNet quick-start style regression workflow. The legacy
+`POST /api/Regression/Predict?UseGPU=false` route is also supported. Upload a
+`multipart/form-data` request with:
 
 - `features`: `features.csv`, where each row contains numeric feature columns
   followed by the numeric target value in the last column.
@@ -41,9 +43,13 @@ CPU only; `UseGPU=true` is echoed as `gpuRequested: true`, but `gpuUsed`
 remains `false`.
 
 ```bash
-curl -X POST "http://localhost:5000/api/Regression/Predict?UseGPU=false" \
+curl -X POST "http://localhost:5000/api/Regression/SimpleRegression?UseGPU=false" \
   -F "features=@features.csv" \
   -F "tests=@tests.csv"
 ```
+
+Calling the endpoint without a `multipart/form-data` body now returns a 400
+response with a clear message instead of attempting to parse an empty request
+body as a form.
 
 The response contains JSON metadata plus one prediction per row in `tests.csv`.

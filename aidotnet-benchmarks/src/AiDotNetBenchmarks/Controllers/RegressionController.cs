@@ -16,9 +16,18 @@ public sealed class RegressionController : ControllerBase
     public ActionResult<string> Test() => "ping";
 
     [HttpPost("Predict")]
+    [HttpPost("SimpleRegression")]
     [RequestSizeLimit(long.MaxValue)]
-    public async Task<ActionResult<CsvRegressionResponse>> Predict([FromQuery] bool UseGPU = false)
+    public async Task<ActionResult<CsvRegressionResponse>> SimpleRegression([FromQuery] bool UseGPU = false)
     {
+        if (!Request.HasFormContentType)
+        {
+            return BadRequest(new
+            {
+                error = "This endpoint requires multipart/form-data with CSV files named features.csv and tests.csv, or form fields named features and tests."
+            });
+        }
+
         var form = await Request.ReadFormAsync(HttpContext.RequestAborted);
         var featuresFile = FindCsvFile(form.Files, "features", "features.csv");
         var testsFile = FindCsvFile(form.Files, "tests", "tests.csv");
