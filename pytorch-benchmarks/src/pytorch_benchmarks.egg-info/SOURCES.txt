@@ -12,3 +12,4 @@ src/pytorch_benchmarks.egg-info/requires.txt
 src/pytorch_benchmarks.egg-info/top_level.txt
 src/pytorch_benchmarks/controllers/__init__.py
 src/pytorch_benchmarks/controllers/regression_controller.py
+tests/test_regression_controller.py
