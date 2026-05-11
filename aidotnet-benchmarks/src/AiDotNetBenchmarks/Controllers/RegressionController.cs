@@ -118,7 +118,7 @@ public sealed class RegressionController : ControllerBase
         var result = await new AiModelBuilder<double, Matrix<double>, Vector<double>>()
             .ConfigureDataLoader(loader)
             .ConfigureModel(new SimpleRegression<double>())
-            .BuildAsync(cancellationToken);
+            .BuildAsync();
 
         var testData = ToMatrix(testRows, featureCount);
         return result.Predict(testData);
