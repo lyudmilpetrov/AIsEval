@@ -3,20 +3,16 @@
   "WorkspaceRootPath": "C:\\Users\\ljudm\\Documents\\Work\\AIsEval\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{8ACDE0AA-CBB7-5A9B-E1F7-7F53E0D1D1BF}|aidotnet-benchmarks\\AiDotNetBenchmarks.csproj|c:\\users\\ljudm\\documents\\work\\aiseval\\aidotnet-benchmarks\\src\\aidotnetbenchmarks\\controllers\\bothcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{8ACDE0AA-CBB7-5A9B-E1F7-7F53E0D1D1BF}|aidotnet-benchmarks\\AiDotNetBenchmarks.csproj|solutionrelative:aidotnet-benchmarks\\src\\aidotnetbenchmarks\\controllers\\bothcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{8ACDE0AA-CBB7-5A9B-E1F7-7F53E0D1D1BF}|aidotnet-benchmarks\\AiDotNetBenchmarks.csproj|c:\\users\\ljudm\\documents\\work\\aiseval\\aidotnet-benchmarks\\src\\aidotnetbenchmarks\\controllers\\regressioncontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{8ACDE0AA-CBB7-5A9B-E1F7-7F53E0D1D1BF}|aidotnet-benchmarks\\AiDotNetBenchmarks.csproj|solutionrelative:aidotnet-benchmarks\\src\\aidotnetbenchmarks\\controllers\\regressioncontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{8ACDE0AA-CBB7-5A9B-E1F7-7F53E0D1D1BF}|aidotnet-benchmarks\\AiDotNetBenchmarks.csproj|c:\\users\\ljudm\\documents\\work\\aiseval\\aidotnet-benchmarks\\src\\aidotnetbenchmarks\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{8ACDE0AA-CBB7-5A9B-E1F7-7F53E0D1D1BF}|aidotnet-benchmarks\\AiDotNetBenchmarks.csproj|solutionrelative:aidotnet-benchmarks\\src\\aidotnetbenchmarks\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{8ACDE0AA-CBB7-5A9B-E1F7-7F53E0D1D1BF}|aidotnet-benchmarks\\AiDotNetBenchmarks.csproj|c:\\users\\ljudm\\documents\\work\\aiseval\\aidotnet-benchmarks\\src\\aidotnetbenchmarks\\controllers\\bothcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{8ACDE0AA-CBB7-5A9B-E1F7-7F53E0D1D1BF}|aidotnet-benchmarks\\AiDotNetBenchmarks.csproj|solutionrelative:aidotnet-benchmarks\\src\\aidotnetbenchmarks\\controllers\\bothcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{8ACDE0AA-CBB7-5A9B-E1F7-7F53E0D1D1BF}|aidotnet-benchmarks\\AiDotNetBenchmarks.csproj|c:\\users\\ljudm\\documents\\work\\aiseval\\aidotnet-benchmarks\\aidotnetbenchmarks.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
-      "RelativeMoniker": "D:0:0:{8ACDE0AA-CBB7-5A9B-E1F7-7F53E0D1D1BF}|aidotnet-benchmarks\\AiDotNetBenchmarks.csproj|solutionrelative:aidotnet-benchmarks\\aidotnetbenchmarks.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+      "AbsoluteMoniker": "D:0:0:{8ACDE0AA-CBB7-5A9B-E1F7-7F53E0D1D1BF}|aidotnet-benchmarks\\AiDotNetBenchmarks.csproj|c:\\users\\ljudm\\documents\\work\\aiseval\\aidotnet-benchmarks\\src\\aidotnetbenchmarks\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{8ACDE0AA-CBB7-5A9B-E1F7-7F53E0D1D1BF}|aidotnet-benchmarks\\AiDotNetBenchmarks.csproj|solutionrelative:aidotnet-benchmarks\\src\\aidotnetbenchmarks\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -26,11 +22,11 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 1,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "BothController.cs",
               "DocumentMoniker": "C:\\Users\\ljudm\\Documents\\Work\\AIsEval\\aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Controllers\\BothController.cs",
               "RelativeDocumentMoniker": "aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Controllers\\BothController.cs",
@@ -43,28 +39,16 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 0,
               "Title": "RegressionController.cs",
               "DocumentMoniker": "C:\\Users\\ljudm\\Documents\\Work\\AIsEval\\aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Controllers\\RegressionController.cs",
               "RelativeDocumentMoniker": "aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Controllers\\RegressionController.cs",
               "ToolTip": "C:\\Users\\ljudm\\Documents\\Work\\AIsEval\\aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Controllers\\RegressionController.cs",
               "RelativeToolTip": "aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Controllers\\RegressionController.cs",
-              "ViewState": "AgIAAE4AAAAAAAAAAAAAAGEAAAAMAAAAAAAAAA==",
+              "ViewState": "AgIAAKsAAAAAAAAAAAAIwL0AAAAYAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-05-08T19:52:40.577Z",
               "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "AiDotNetBenchmarks.csproj",
-              "DocumentMoniker": "C:\\Users\\ljudm\\Documents\\Work\\AIsEval\\aidotnet-benchmarks\\AiDotNetBenchmarks.csproj",
-              "RelativeDocumentMoniker": "aidotnet-benchmarks\\AiDotNetBenchmarks.csproj",
-              "ToolTip": "C:\\Users\\ljudm\\Documents\\Work\\AIsEval\\aidotnet-benchmarks\\AiDotNetBenchmarks.csproj",
-              "RelativeToolTip": "aidotnet-benchmarks\\AiDotNetBenchmarks.csproj",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAwAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
-              "WhenOpened": "2026-05-08T19:41:05.75Z"
             },
             {
               "$type": "Document",
