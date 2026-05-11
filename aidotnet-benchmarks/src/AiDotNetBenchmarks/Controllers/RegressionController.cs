@@ -20,6 +20,14 @@ public sealed class RegressionController : ControllerBase
     // api/Regression/SimpleRegression?UseGPU=false
     public async Task<ActionResult<CsvRegressionResponse>> SimpleRegression([FromQuery] bool UseGPU = false)
     {
+        if (!Request.HasFormContentType)
+        {
+            return BadRequest(new
+            {
+                error = "This endpoint requires multipart/form-data with CSV files named features.csv and tests.csv, or form fields named features and tests."
+            });
+        }
+
         var form = await Request.ReadFormAsync(HttpContext.RequestAborted);
         var featuresFile = FindCsvFile(form.Files, "features", "features.csv");
         var testsFile = FindCsvFile(form.Files, "tests", "tests.csv");
