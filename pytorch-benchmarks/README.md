@@ -150,9 +150,9 @@ multipart request with:
 - `tests`: `tests.csv`, where each row contains only the numeric feature columns
   to predict.
 
-Both files may include a single header row. Set `UseGPU=true` to use `cuda:0`
-when CUDA is available; otherwise the endpoint falls back to CPU and reports
-`gpuUsed: false`.
+Both files may include a single header row. The endpoint currently runs on CPU
+only to match the AiDotNet regression endpoint; `UseGPU=true` is echoed as
+`gpuRequested: true`, but `gpuUsed` remains `false`.
 
 ```bash
 curl -X POST "http://localhost:8000/api/Regression/Predict?UseGPU=false" \
