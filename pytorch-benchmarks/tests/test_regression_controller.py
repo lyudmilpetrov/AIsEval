@@ -39,6 +39,22 @@ def test_find_csv_input_accepts_text_form_fields() -> None:
     assert asyncio.run(tests.read()) == b"x\n3\n"
 
 
+class _JsonContentTypeRequest:
+    headers = {"content-type": "application/json"}
+
+    async def form(self) -> FormData:
+        raise AssertionError("form parsing should not be attempted")
+
+
+def test_read_request_form_reports_received_content_type_for_postman_misconfiguration() -> None:
+    response = asyncio.run(_read_request_form(_JsonContentTypeRequest()))
+
+    assert response.status_code == 400
+    body = json.loads(response.body)
+    assert "Received Content-Type: application/json" in body["error"]
+    assert "delete any manually configured Content-Type header" in body["error"]
+
+
 def test_read_request_form_reports_missing_python_multipart() -> None:
     response = asyncio.run(_read_request_form(_MissingMultipartRequest()))
 
