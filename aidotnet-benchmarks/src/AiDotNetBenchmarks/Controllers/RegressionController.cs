@@ -3,8 +3,12 @@ using AiDotNet.Data.Loaders;
 using AiDotNet.Regression;
 using AiDotNet.Tensors.LinearAlgebra;
 using Microsoft.AspNetCore.Mvc;
+using System.Diagnostics;
 using System.Globalization;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.Json.Serialization;
 
 namespace AiDotNetBenchmarks.Controllers;
 
@@ -21,6 +25,9 @@ public sealed class RegressionController : ControllerBase
     [RequestSizeLimit(long.MaxValue)]
     public async Task<ActionResult<CsvRegressionResponse>> SimpleRegression([FromQuery] bool UseGPU = false)
     {
+        var measurement = RequestPerformanceMeasurement.Start();
+        var preprocessTimer = Stopwatch.StartNew();
+
         if (!Request.HasFormContentType)
         {
             return BadRequest(new
@@ -82,14 +89,42 @@ public sealed class RegressionController : ControllerBase
             return BadRequest(new { error = $"Every tests.csv row must contain exactly {featureCount} feature columns." });
         }
 
+        preprocessTimer.Stop();
+
+        var inferenceTimer = Stopwatch.StartNew();
         var predictedValues = trainingRows.Count >= MinimumRowsForAiDotNetValidationSplit
             ? await PredictWithAiDotNetAsync(trainingRows, testRows, featureCount, HttpContext.RequestAborted)
             : PredictWithLeastSquares(trainingRows, testRows, featureCount);
+        inferenceTimer.Stop();
+
+        var postprocessTimer = Stopwatch.StartNew();
         var predictions = Enumerable.Range(0, testRows.Count)
             .Select(index => new CsvPrediction(index, predictedValues[index]))
             .ToArray();
+        postprocessTimer.Stop();
+
+        var totalMs = measurement.ElapsedMilliseconds;
+        var gpu = RegressionGpuProbe.Read();
 
         return Ok(new CsvRegressionResponse(
+            predictions,
+            new TimingMetrics(
+                totalMs,
+                RoundMilliseconds(preprocessTimer.Elapsed.TotalMilliseconds),
+                RoundMilliseconds(inferenceTimer.Elapsed.TotalMilliseconds),
+                RoundMilliseconds(postprocessTimer.Elapsed.TotalMilliseconds)),
+            measurement.ToCpuMetrics(totalMs),
+            gpu,
+            new SystemMetrics(
+                RuntimeInformation.OSDescription,
+                RuntimeInformation.FrameworkDescription,
+                GetAiDotNetVersion(),
+                "cpu",
+                false),
+            new ModelMetrics(
+                testRows.Count,
+                featureCount + 1,
+                EstimateLinearRegressionFlops(trainingRows.Count, testRows.Count, featureCount)),
             "AiDotNet",
             "SimpleRegression",
             UseGPU,
@@ -100,6 +135,21 @@ public sealed class RegressionController : ControllerBase
             predictions));
     }
 
+    private static double RoundMilliseconds(double value) => Math.Round(value, 3);
+
+    private static long EstimateLinearRegressionFlops(int trainingRows, int testRows, int featureCount)
+    {
+        var coefficientCount = featureCount + 1L;
+        var normalEquationFlops = trainingRows * coefficientCount * coefficientCount * 2L;
+        var solveFlops = 2L * coefficientCount * coefficientCount * coefficientCount / 3L;
+        var inferenceFlops = testRows * coefficientCount * 2L;
+        return normalEquationFlops + solveFlops + inferenceFlops;
+    }
+
+    private static string GetAiDotNetVersion() =>
+        typeof(AiModelBuilder<,,>).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+        ?? typeof(AiModelBuilder<,,>).Assembly.GetName().Version?.ToString()
+        ?? "unknown";
 
     private static async Task<Vector<double>> PredictWithAiDotNetAsync(
         IReadOnlyList<double[]> trainingRows,
@@ -327,6 +377,12 @@ internal sealed record CsvRegressionInput(string FileName, IFormFile? File, stri
 }
 
 public sealed record CsvRegressionResponse(
+    [property: JsonPropertyName("prediction")] IReadOnlyList<CsvPrediction> Prediction,
+    [property: JsonPropertyName("timings")] TimingMetrics Timings,
+    [property: JsonPropertyName("cpu")] CpuMetrics Cpu,
+    [property: JsonPropertyName("gpu")] GpuMetrics Gpu,
+    [property: JsonPropertyName("system")] SystemMetrics System,
+    [property: JsonPropertyName("model_metrics")] ModelMetrics ModelMetrics,
     string Framework,
     string Model,
     bool GpuRequested,
@@ -336,7 +392,161 @@ public sealed record CsvRegressionResponse(
     int FeatureCount,
     IReadOnlyList<CsvPrediction> Predictions);
 
+public sealed record TimingMetrics(
+    [property: JsonPropertyName("total_ms")] double TotalMs,
+    [property: JsonPropertyName("preprocess_ms")] double PreprocessMs,
+    [property: JsonPropertyName("inference_ms")] double InferenceMs,
+    [property: JsonPropertyName("postprocess_ms")] double PostprocessMs);
+
+public sealed record CpuMetrics(
+    [property: JsonPropertyName("usage_percent")] double? UsagePercent,
+    [property: JsonPropertyName("memory_mb")] double MemoryMb,
+    [property: JsonPropertyName("memory_before_mb")] double MemoryBeforeMb,
+    [property: JsonPropertyName("memory_after_mb")] double MemoryAfterMb,
+    [property: JsonPropertyName("threads")] int Threads,
+    [property: JsonPropertyName("cpu_cycles")] long? CpuCycles,
+    [property: JsonPropertyName("cpu_time_ms")] double CpuTimeMs,
+    [property: JsonPropertyName("gc_collections")] IReadOnlyDictionary<string, int> GcCollections,
+    [property: JsonPropertyName("gc_allocated_bytes")] long GcAllocatedBytes);
+
+public sealed record GpuMetrics(
+    [property: JsonPropertyName("name")] string? Name,
+    [property: JsonPropertyName("utilization_percent")] double? UtilizationPercent,
+    [property: JsonPropertyName("memory_allocated_mb")] double? MemoryAllocatedMb,
+    [property: JsonPropertyName("memory_reserved_mb")] double? MemoryReservedMb,
+    [property: JsonPropertyName("memory_peak_allocated_mb")] double? MemoryPeakAllocatedMb,
+    [property: JsonPropertyName("memory_total_mb")] double? MemoryTotalMb,
+    [property: JsonPropertyName("temperature_c")] double? TemperatureC,
+    [property: JsonPropertyName("kernel_execution_ms")] double? KernelExecutionMs,
+    [property: JsonPropertyName("tensor_core_utilization_percent")] double? TensorCoreUtilizationPercent,
+    [property: JsonPropertyName("device_info")] string? DeviceInfo);
+
+public sealed record SystemMetrics(
+    [property: JsonPropertyName("os")] string Os,
+    [property: JsonPropertyName("framework_version")] string FrameworkVersion,
+    [property: JsonPropertyName("library_version")] string LibraryVersion,
+    [property: JsonPropertyName("device")] string Device,
+    [property: JsonPropertyName("mixed_precision")] bool MixedPrecision);
+
+public sealed record ModelMetrics(
+    [property: JsonPropertyName("batch_size")] int BatchSize,
+    [property: JsonPropertyName("parameter_count")] long ParameterCount,
+    [property: JsonPropertyName("flops_estimate")] long? FlopsEstimate);
+
 public sealed record CsvPrediction(int RowIndex, double Prediction);
+
+internal sealed class RequestPerformanceMeasurement
+{
+    private readonly long _startedAt;
+    private readonly Process _process = Process.GetCurrentProcess();
+    private readonly TimeSpan _startCpuTime;
+    private readonly long _startMemoryBytes;
+    private readonly long _startAllocatedBytes;
+    private readonly int[] _startGcCollections;
+
+    private RequestPerformanceMeasurement()
+    {
+        _process.Refresh();
+        _startMemoryBytes = _process.WorkingSet64;
+        _startAllocatedBytes = GC.GetTotalAllocatedBytes(precise: false);
+        _startGcCollections = Enumerable.Range(0, GC.MaxGeneration + 1)
+            .Select(GC.CollectionCount)
+            .ToArray();
+        _startCpuTime = _process.TotalProcessorTime;
+        _startedAt = Stopwatch.GetTimestamp();
+    }
+
+    public static RequestPerformanceMeasurement Start() => new();
+
+    public double ElapsedMilliseconds =>
+        Math.Round(Stopwatch.GetElapsedTime(_startedAt).TotalMilliseconds, 3);
+
+    public CpuMetrics ToCpuMetrics(double elapsedMilliseconds)
+    {
+        _process.Refresh();
+        var cpuTime = _process.TotalProcessorTime - _startCpuTime;
+        var elapsedSeconds = Math.Max(elapsedMilliseconds / 1000d, 1e-9);
+        var usage = cpuTime.TotalSeconds / elapsedSeconds / Math.Max(Environment.ProcessorCount, 1) * 100d;
+        var gcCollections = Enumerable.Range(0, GC.MaxGeneration + 1)
+            .ToDictionary(
+                generation => $"gen{generation}",
+                generation => GC.CollectionCount(generation) - _startGcCollections[generation]);
+
+        return new CpuMetrics(
+            Math.Round(Math.Max(0d, usage), 3),
+            Math.Round(_process.WorkingSet64 / 1024d / 1024d, 3),
+            Math.Round(_startMemoryBytes / 1024d / 1024d, 3),
+            Math.Round(_process.WorkingSet64 / 1024d / 1024d, 3),
+            _process.Threads.Count,
+            null,
+            Math.Round(cpuTime.TotalMilliseconds, 3),
+            gcCollections,
+            GC.GetTotalAllocatedBytes(precise: false) - _startAllocatedBytes);
+    }
+}
+
+internal static class RegressionGpuProbe
+{
+    public static GpuMetrics Read()
+    {
+        try
+        {
+            using var process = Process.Start(new ProcessStartInfo
+            {
+                FileName = "nvidia-smi",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            }.WithArguments(
+                "--query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu",
+                "--format=csv,noheader,nounits"));
+
+            if (process is null || !process.WaitForExit(1000) || process.ExitCode != 0)
+            {
+                return Empty();
+            }
+
+            var line = process.StandardOutput.ReadLine();
+            if (string.IsNullOrWhiteSpace(line)) return Empty();
+
+            var parts = line.Split(',', StringSplitOptions.TrimEntries);
+            if (parts.Length < 5) return Empty();
+
+            return new GpuMetrics(
+                parts[0],
+                ParseNullableDouble(parts[1]),
+                ParseNullableDouble(parts[2]),
+                null,
+                null,
+                ParseNullableDouble(parts[3]),
+                ParseNullableDouble(parts[4]),
+                null,
+                null,
+                "NVIDIA CUDA device sampled by nvidia-smi; AiDotNet regression inference currently executes on CPU.");
+        }
+        catch
+        {
+            return Empty();
+        }
+    }
+
+    private static GpuMetrics Empty() => new(null, null, null, null, null, null, null, null, null, null);
+
+    private static double? ParseNullableDouble(string value) =>
+        double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) ? parsed : null;
+}
+
+internal static class ProcessStartInfoExtensions
+{
+    public static ProcessStartInfo WithArguments(this ProcessStartInfo startInfo, params string[] arguments)
+    {
+        foreach (var argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        return startInfo;
+    }
+}
 
 internal static class CsvRegressionReader
 {
