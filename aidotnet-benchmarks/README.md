@@ -36,9 +36,9 @@ AiDotNet quick-start style regression workflow. Upload a multipart request with:
 - `tests`: `tests.csv`, where each row contains only the numeric feature columns
   to predict.
 
-Both CSV files may include a single header row. Set `UseGPU=true` to request
-AiDotNet GPU acceleration; the endpoint passes that request into
-`ConfigureGpuAcceleration` with device `0`.
+Both CSV files may include a single header row. The endpoint currently runs on
+CPU only; `UseGPU=true` is echoed as `gpuRequested: true`, but `gpuUsed`
+remains `false`.
 
 ```bash
 curl -X POST "http://localhost:5000/api/Regression/Predict?UseGPU=false" \
