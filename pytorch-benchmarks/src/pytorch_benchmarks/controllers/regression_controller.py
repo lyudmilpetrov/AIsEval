@@ -2,8 +2,14 @@ from __future__ import annotations
 
 import csv
 import io
+import os
+import platform
+import subprocess
+import time
 from dataclasses import dataclass
 from typing import Annotated
+
+import psutil
 
 import torch
 from fastapi import APIRouter, Query, Request
@@ -19,7 +25,56 @@ class CsvPrediction(BaseModel):
     prediction: float
 
 
+class TimingMetrics(BaseModel):
+    total_ms: float
+    preprocess_ms: float
+    inference_ms: float
+    postprocess_ms: float
+
+
+class CpuMetrics(BaseModel):
+    usage_percent: float | None
+    memory_mb: float
+    memory_before_mb: float
+    memory_after_mb: float
+    threads: int
+    cpu_cycles: int | None = None
+
+
+class GpuMetrics(BaseModel):
+    name: str | None
+    utilization_percent: float | None
+    memory_allocated_mb: float | None
+    memory_reserved_mb: float | None
+    memory_peak_allocated_mb: float | None = None
+    memory_total_mb: float | None = None
+    temperature_c: float | None
+    kernel_execution_ms: float | None = None
+    tensor_core_utilization_percent: float | None = None
+    device_info: str | None = None
+
+
+class SystemMetrics(BaseModel):
+    os: str
+    framework_version: str
+    library_version: str
+    device: str
+    mixed_precision: bool
+
+
+class ModelMetrics(BaseModel):
+    batch_size: int
+    parameter_count: int
+    flops_estimate: int | None
+
+
 class CsvRegressionResponse(BaseModel):
+    prediction: list[CsvPrediction]
+    timings: TimingMetrics
+    cpu: CpuMetrics
+    gpu: GpuMetrics
+    system: SystemMetrics
+    model_metrics: ModelMetrics
     framework: str
     model: str
     gpuRequested: bool
@@ -28,6 +83,129 @@ class CsvRegressionResponse(BaseModel):
     testRows: int
     featureCount: int
     predictions: list[CsvPrediction]
+
+
+@dataclass(frozen=True)
+class _PerformanceMeasurement:
+    started_at: float
+    process_cpu_seconds: float
+    system_cpu_percent: float | None
+    memory_before_mb: float
+
+    @classmethod
+    def start(cls) -> "_PerformanceMeasurement":
+        process = psutil.Process(os.getpid())
+        process.cpu_percent(None)
+        try:
+            system_cpu_percent = psutil.cpu_percent(interval=None)
+        except Exception:
+            system_cpu_percent = None
+        return cls(
+            started_at=time.perf_counter(),
+            process_cpu_seconds=sum(process.cpu_times()[:2]),
+            system_cpu_percent=system_cpu_percent,
+            memory_before_mb=_process_memory_mb(process),
+        )
+
+    def cpu_metrics(self, total_ms: float) -> CpuMetrics:
+        process = psutil.Process(os.getpid())
+        cpu_seconds = sum(process.cpu_times()[:2]) - self.process_cpu_seconds
+        elapsed_seconds = max(total_ms / 1000.0, 1e-9)
+        usage_percent = (cpu_seconds / elapsed_seconds / max(psutil.cpu_count() or 1, 1)) * 100
+        return CpuMetrics(
+            usage_percent=round(max(0.0, usage_percent), 3),
+            memory_mb=round(_process_memory_mb(process), 3),
+            memory_before_mb=round(self.memory_before_mb, 3),
+            memory_after_mb=round(_process_memory_mb(process), 3),
+            threads=process.num_threads(),
+            cpu_cycles=None,
+        )
+
+
+def _elapsed_ms(started_at: float) -> float:
+    return round((time.perf_counter() - started_at) * 1000.0, 3)
+
+
+def _process_memory_mb(process: psutil.Process) -> float:
+    return process.memory_info().rss / 1024 / 1024
+
+
+def _estimate_linear_regression_flops(training_rows: int, test_rows: int, feature_count: int) -> int:
+    coefficient_count = feature_count + 1
+    normal_equation_flops = training_rows * coefficient_count * coefficient_count * 2
+    solve_flops = (2 * coefficient_count * coefficient_count * coefficient_count) // 3
+    inference_flops = test_rows * coefficient_count * 2
+    return normal_equation_flops + solve_flops + inference_flops
+
+
+def _gpu_metrics(device: torch.device, gpu_used: bool, kernel_ms: float | None) -> GpuMetrics:
+    nvidia = _query_nvidia_smi()
+    name = None
+    allocated = None
+    reserved = None
+    peak_allocated = None
+    device_info = None
+
+    if gpu_used and device.type == "cuda":
+        index = device.index or torch.cuda.current_device()
+        props = torch.cuda.get_device_properties(index)
+        name = torch.cuda.get_device_name(index)
+        allocated = torch.cuda.memory_allocated(index) / 1024 / 1024
+        reserved = torch.cuda.memory_reserved(index) / 1024 / 1024
+        peak_allocated = torch.cuda.max_memory_allocated(index) / 1024 / 1024
+        device_info = (
+            f"CUDA capability {props.major}.{props.minor}, "
+            f"{props.multi_processor_count} SMs, {props.total_memory / 1024 / 1024:.0f} MiB"
+        )
+
+    return GpuMetrics(
+        name=name or nvidia.get("name"),
+        utilization_percent=nvidia.get("utilization_percent"),
+        memory_allocated_mb=round(allocated, 3) if allocated is not None else nvidia.get("memory_used_mb"),
+        memory_reserved_mb=round(reserved, 3) if reserved is not None else None,
+        memory_peak_allocated_mb=round(peak_allocated, 3) if peak_allocated is not None else None,
+        memory_total_mb=nvidia.get("memory_total_mb"),
+        temperature_c=nvidia.get("temperature_c"),
+        kernel_execution_ms=round(kernel_ms, 3) if kernel_ms is not None else None,
+        tensor_core_utilization_percent=None,
+        device_info=device_info,
+    )
+
+
+def _query_nvidia_smi() -> dict[str, float | str]:
+    try:
+        completed = subprocess.run(
+            [
+                "nvidia-smi",
+                "--query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu",
+                "--format=csv,noheader,nounits",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=1.0,
+        )
+    except (FileNotFoundError, subprocess.SubprocessError, TimeoutError):
+        return {}
+
+    line = completed.stdout.strip().splitlines()[0] if completed.stdout.strip() else ""
+    parts = [part.strip() for part in line.split(",")]
+    if len(parts) < 5:
+        return {}
+    return {
+        "name": parts[0],
+        "utilization_percent": _to_float(parts[1]),
+        "memory_used_mb": _to_float(parts[2]),
+        "memory_total_mb": _to_float(parts[3]),
+        "temperature_c": _to_float(parts[4]),
+    }
+
+
+def _to_float(value: str) -> float | None:
+    try:
+        return float(value)
+    except ValueError:
+        return None
 
 
 class CsvFormatError(ValueError):
@@ -57,6 +235,8 @@ async def predict(
     request: Request,
     use_gpu: Annotated[bool, Query(alias="UseGPU")] = False,
 ) -> CsvRegressionResponse | JSONResponse:
+    performance = _PerformanceMeasurement.start()
+    preprocess_start = time.perf_counter()
     form_or_error = await _read_request_form(request)
     if isinstance(form_or_error, JSONResponse):
         return form_or_error
@@ -96,11 +276,11 @@ async def predict(
             f"Every tests.csv row must contain exactly {feature_count} feature columns."
         )
 
-    # Keep the regression endpoint CPU-only so benchmark runs match the current
-    # AiDotNet controller behavior, which reports the GPU request but does not
-    # configure GPU acceleration yet.
-    device = torch.device("cpu")
-    gpu_used = False
+    gpu_used = use_gpu and torch.cuda.is_available()
+    device = torch.device("cuda" if gpu_used else "cpu")
+    if gpu_used:
+        torch.cuda.reset_peak_memory_stats(device)
+        torch.cuda.synchronize(device)
 
     x_train = torch.tensor(
         [row[:feature_count] for row in training_rows],
@@ -113,10 +293,54 @@ async def predict(
         device=device,
     )
     x_tests = torch.tensor(test_rows, dtype=torch.float64, device=device)
+    preprocess_ms = _elapsed_ms(preprocess_start)
+
+    inference_start = time.perf_counter()
+    cuda_start: torch.cuda.Event | None = None
+    cuda_end: torch.cuda.Event | None = None
+    if gpu_used:
+        cuda_start = torch.cuda.Event(enable_timing=True)
+        cuda_end = torch.cuda.Event(enable_timing=True)
+        cuda_start.record()
 
     predictions = _predict_with_torch_least_squares(x_train, y_train, x_tests)
 
+    if gpu_used and cuda_start is not None and cuda_end is not None:
+        cuda_end.record()
+        torch.cuda.synchronize(device)
+    inference_ms = _elapsed_ms(inference_start)
+    kernel_ms = cuda_start.elapsed_time(cuda_end) if cuda_start and cuda_end else None
+
+    postprocess_start = time.perf_counter()
+    prediction_items = [
+        CsvPrediction(rowIndex=index, prediction=value)
+        for index, value in enumerate(predictions)
+    ]
+    postprocess_ms = _elapsed_ms(postprocess_start)
+    total_ms = _elapsed_ms(performance.started_at)
+
     return CsvRegressionResponse(
+        prediction=prediction_items,
+        timings=TimingMetrics(
+            total_ms=total_ms,
+            preprocess_ms=preprocess_ms,
+            inference_ms=inference_ms,
+            postprocess_ms=postprocess_ms,
+        ),
+        cpu=performance.cpu_metrics(total_ms),
+        gpu=_gpu_metrics(device, gpu_used, kernel_ms),
+        system=SystemMetrics(
+            os=platform.platform(),
+            framework_version=platform.python_version(),
+            library_version=torch.__version__,
+            device="gpu" if gpu_used else "cpu",
+            mixed_precision=False,
+        ),
+        model_metrics=ModelMetrics(
+            batch_size=len(test_rows),
+            parameter_count=feature_count + 1,
+            flops_estimate=_estimate_linear_regression_flops(len(training_rows), len(test_rows), feature_count),
+        ),
         framework="PyTorch",
         model="torch.linalg.lstsq-linear-regression",
         gpuRequested=use_gpu,
@@ -124,10 +348,7 @@ async def predict(
         trainingRows=len(training_rows),
         testRows=len(test_rows),
         featureCount=feature_count,
-        predictions=[
-            CsvPrediction(rowIndex=index, prediction=value)
-            for index, value in enumerate(predictions)
-        ],
+        predictions=prediction_items,
     )
 
 
