@@ -437,7 +437,7 @@ public sealed record CsvPrediction(int RowIndex, double Prediction);
 
 internal sealed class RequestPerformanceMeasurement
 {
-    private readonly long _startedAt = Stopwatch.GetTimestamp();
+    private readonly long _startedAt;
     private readonly Process _process = Process.GetCurrentProcess();
     private readonly TimeSpan _startCpuTime;
     private readonly long _startMemoryBytes;
@@ -447,12 +447,13 @@ internal sealed class RequestPerformanceMeasurement
     private RequestPerformanceMeasurement()
     {
         _process.Refresh();
-        _startCpuTime = _process.TotalProcessorTime;
         _startMemoryBytes = _process.WorkingSet64;
         _startAllocatedBytes = GC.GetTotalAllocatedBytes(precise: false);
         _startGcCollections = Enumerable.Range(0, GC.MaxGeneration + 1)
             .Select(GC.CollectionCount)
             .ToArray();
+        _startCpuTime = _process.TotalProcessorTime;
+        _startedAt = Stopwatch.GetTimestamp();
     }
 
     public static RequestPerformanceMeasurement Start() => new();

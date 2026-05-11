@@ -157,6 +157,11 @@ def _gpu_metrics(device: torch.device, gpu_used: bool, kernel_ms: float | None) 
             f"CUDA capability {props.major}.{props.minor}, "
             f"{props.multi_processor_count} SMs, {props.total_memory / 1024 / 1024:.0f} MiB"
         )
+    elif nvidia.get("name"):
+        device_info = (
+            "NVIDIA CUDA device sampled by nvidia-smi; "
+            "PyTorch regression inference executed on CPU."
+        )
 
     return GpuMetrics(
         name=name or nvidia.get("name"),
