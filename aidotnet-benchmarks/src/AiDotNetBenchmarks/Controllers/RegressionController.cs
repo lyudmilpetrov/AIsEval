@@ -94,9 +94,10 @@ public sealed class RegressionController : ControllerBase
         var testData = ToMatrix(testRows, featureCount);
         preprocessTimer.Stop();
 
+        var regressionModelName = GetRegressionModelName(featureCount);
         var inferenceTimer = Stopwatch.StartNew();
         var predictedValues = trainingRows.Count >= MinimumRowsForAiDotNetValidationSplit
-            ? await PredictWithAiDotNetAsync(features, labels, testData, HttpContext.RequestAborted)
+            ? await PredictWithAiDotNetAsync(features, labels, testData, featureCount, HttpContext.RequestAborted)
             : PredictWithLeastSquares(trainingRows, testRows, featureCount);
         inferenceTimer.Stop();
 
@@ -129,7 +130,7 @@ public sealed class RegressionController : ControllerBase
                 featureCount + 1,
                 EstimateLinearRegressionFlops(trainingRows.Count, testRows.Count, featureCount)),
             "AiDotNet",
-            "SimpleRegression",
+            regressionModelName,
             UseGPU,
             false,
             trainingRows.Count,
@@ -154,23 +155,41 @@ public sealed class RegressionController : ControllerBase
         ?? typeof(AiModelBuilder<,,>).Assembly.GetName().Version?.ToString()
         ?? "unknown";
 
+    private static string GetRegressionModelName(int featureCount) =>
+        featureCount == 1 ? "SimpleRegression" : "MultipleRegression";
+
     private static async Task<Vector<double>> PredictWithAiDotNetAsync(
         double[,] features,
         double[] labels,
         Matrix<double> testData,
+        int featureCount,
         CancellationToken cancellationToken)
     {
         // AiDotNet currently performs an internal 70/15/15 train/validation/test
         // split. Datasets with fewer than seven rows produce a zero-row
         // validation matrix, so small CSV uploads use the least-squares fallback
-        // below instead of entering the builder path.
+        // below instead of entering the builder path. Select the AiDotNet
+        // regression implementation to match the uploaded CSV shape so a
+        // multi-column features.csv uses MultipleRegression instead of failing
+        // SimpleRegression's single-feature validation.
         var loader = DataLoaders.FromArrays(features, labels);
-        var result = await new AiModelBuilder<double, Matrix<double>, Vector<double>>()
-            .ConfigureDataLoader(loader)
-            .ConfigureModel(new SimpleRegression<double>())
-            .BuildAsync();
 
-        return result.Predict(testData);
+        if (featureCount == 1)
+        {
+            var result = await new AiModelBuilder<double, Matrix<double>, Vector<double>>()
+                .ConfigureDataLoader(loader)
+                .ConfigureModel(new SimpleRegression<double>())
+                .BuildAsync(cancellationToken);
+
+            return result.Predict(testData);
+        }
+
+        var multipleRegressionResult = await new AiModelBuilder<double, Matrix<double>, Vector<double>>()
+            .ConfigureDataLoader(loader)
+            .ConfigureModel(new MultipleRegression<double>())
+            .BuildAsync(cancellationToken);
+
+        return multipleRegressionResult.Predict(testData);
     }
 
     private static Vector<double> PredictWithLeastSquares(
