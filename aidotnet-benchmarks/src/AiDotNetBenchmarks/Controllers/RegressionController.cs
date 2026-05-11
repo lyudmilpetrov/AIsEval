@@ -1,6 +1,5 @@
 using AiDotNet;
 using AiDotNet.Data.Loaders;
-using AiDotNet.Engines;
 using AiDotNet.Regression;
 using AiDotNet.Tensors.LinearAlgebra;
 using Microsoft.AspNetCore.Mvc;
@@ -70,38 +69,74 @@ public sealed class RegressionController : ControllerBase
             return BadRequest(new { error = $"Every tests.csv row must contain exactly {featureCount} feature columns." });
         }
 
-        // Training data: X = input features (single column), y = target values
-        var features = new double[,] { { 1.0 }, { 2.0 }, { 3.0 }, { 4.0 }, { 5.0 } };
-        var labels = new double[] { 2.1, 4.0, 5.9, 8.1, 10.0 };
+        var features = ToFeatureArray(trainingRows, featureCount);
+        var labels = ToLabelArray(trainingRows, featureCount);
 
-        // Build using AiModelBuilder facade pattern
+        // Build using AiModelBuilder facade pattern, matching the AiDotNet simple
+        // regression quick-start while feeding it the uploaded CSV training data.
         var loader = DataLoaders.FromArrays(features, labels);
         var result = await new AiModelBuilder<double, Matrix<double>, Vector<double>>()
             .ConfigureDataLoader(loader)
             .ConfigureModel(new SimpleRegression<double>())
             .BuildAsync();
 
-        // Make predictions - AiModelResult exposes Predict() directly
-        var testData = new Matrix<double>(1, 1);
-        testData[0, 0] = 6.0;
-        var predictions = result.Predict(testData);
-
-        Console.WriteLine($"Prediction for x=6: {predictions[0]:F2}");
-        Console.WriteLine($"Expected: ~12.0 (based on y ≈ 2x)");
-        Console.WriteLine($"Training completed successfully!");
-        Console.WriteLine($"The AiModelResult facade hides implementation details");
-        Console.WriteLine($"and provides a clean interface for predictions.");
-
+        // Make predictions - AiModelResult exposes Predict() directly and hides
+        // the underlying model implementation details.
+        var testData = ToMatrix(testRows, featureCount);
+        var predictedValues = result.Predict(testData);
+        var predictions = Enumerable.Range(0, testRows.Count)
+            .Select(index => new CsvPrediction(index, predictedValues[index]))
+            .ToArray();
 
         return Ok(new CsvRegressionResponse(
             "AiDotNet",
-            "GradientBoostingRegression",
+            "SimpleRegression",
             UseGPU,
-            UseGPU,
+            false,
             trainingRows.Count,
-            tests.Length,
+            testRows.Count,
             featureCount,
             predictions));
+    }
+
+
+    private static double[,] ToFeatureArray(IReadOnlyList<double[]> rows, int featureCount)
+    {
+        var features = new double[rows.Count, featureCount];
+        for (var rowIndex = 0; rowIndex < rows.Count; rowIndex++)
+        {
+            for (var featureIndex = 0; featureIndex < featureCount; featureIndex++)
+            {
+                features[rowIndex, featureIndex] = rows[rowIndex][featureIndex];
+            }
+        }
+
+        return features;
+    }
+
+    private static double[] ToLabelArray(IReadOnlyList<double[]> rows, int featureCount)
+    {
+        var labels = new double[rows.Count];
+        for (var rowIndex = 0; rowIndex < rows.Count; rowIndex++)
+        {
+            labels[rowIndex] = rows[rowIndex][featureCount];
+        }
+
+        return labels;
+    }
+
+    private static Matrix<double> ToMatrix(IReadOnlyList<double[]> rows, int featureCount)
+    {
+        var matrix = new Matrix<double>(rows.Count, featureCount);
+        for (var rowIndex = 0; rowIndex < rows.Count; rowIndex++)
+        {
+            for (var featureIndex = 0; featureIndex < featureCount; featureIndex++)
+            {
+                matrix[rowIndex, featureIndex] = rows[rowIndex][featureIndex];
+            }
+        }
+
+        return matrix;
     }
 
     private static IFormFile? FindCsvFile(IFormFileCollection files, string fieldName, string fileName)
