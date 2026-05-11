@@ -15,9 +15,10 @@ public sealed class RegressionController : ControllerBase
     [HttpGet("Test")]
     public ActionResult<string> Test() => "ping";
 
-    [HttpPost("Predict")]
+    [HttpPost("SimpleRegression")]
     [RequestSizeLimit(long.MaxValue)]
-    public async Task<ActionResult<CsvRegressionResponse>> Predict([FromQuery] bool UseGPU = false)
+    // api/Regression/SimpleRegression?UseGPU=false
+    public async Task<ActionResult<CsvRegressionResponse>> SimpleRegression([FromQuery] bool UseGPU = false)
     {
         var form = await Request.ReadFormAsync(HttpContext.RequestAborted);
         var featuresFile = FindCsvFile(form.Files, "features", "features.csv");
