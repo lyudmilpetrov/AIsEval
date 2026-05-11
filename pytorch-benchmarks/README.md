@@ -171,3 +171,21 @@ curl -X POST "http://localhost:8000/api/Regression/SimpleRegression?UseGPU=false
   -F "features=@features.csv" \
   -F "tests=@tests.csv"
 ```
+
+#### Postman setup
+
+If Postman returns `No multipart/form-data body was received`, the request did
+not reach FastAPI with a generated multipart `Content-Type` header. Use this
+checklist:
+
+1. Open **Headers** and delete or disable any manually added `Content-Type`
+   header, including `application/json` or `multipart/form-data`. Postman must
+   generate `multipart/form-data; boundary=...` automatically from the Body tab.
+2. Open **Body**, select **form-data**, and keep both rows checked.
+3. Add two rows with exact keys `features` and `tests`. Change each row type
+   from **Text** to **File**, then choose `features.csv` and `tests.csv`.
+4. If Postman shows a yellow warning icon on either file, reselect the file from
+   disk or add its folder under **Settings > Working Directory** so the desktop
+   agent can read it.
+5. Send the request to
+   `http://localhost:8000/api/Regression/SimpleRegression?UseGPU=false`.

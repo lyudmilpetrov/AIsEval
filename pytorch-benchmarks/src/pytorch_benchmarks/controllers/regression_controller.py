@@ -133,8 +133,13 @@ async def predict(
 
 async def _read_request_form(request: Request) -> FormData | JSONResponse:
     if not _has_form_content_type(request):
+        content_type = request.headers.get("content-type") or "missing"
         return _bad_request(
-            "No multipart/form-data body was received. Remove any manually configured Content-Type header, send Body as form-data, and use fields named features and tests."
+            "No multipart/form-data body was received. "
+            f"Received Content-Type: {content_type}. "
+            "In Postman, delete any manually configured Content-Type header, "
+            "keep Body set to form-data, reselect both CSV files if a yellow "
+            "warning icon is shown, and send enabled fields named features and tests."
         )
 
     try:
