@@ -111,7 +111,9 @@ class _PerformanceMeasurement:
         process = psutil.Process(os.getpid())
         cpu_seconds = sum(process.cpu_times()[:2]) - self.process_cpu_seconds
         elapsed_seconds = max(total_ms / 1000.0, 1e-9)
-        usage_percent = (cpu_seconds / elapsed_seconds / max(psutil.cpu_count() or 1, 1)) * 100
+        usage_percent = (
+            cpu_seconds / elapsed_seconds / max(psutil.cpu_count() or 1, 1)
+        ) * 100
         return CpuMetrics(
             usage_percent=round(max(0.0, usage_percent), 3),
             memory_mb=round(_process_memory_mb(process), 3),
@@ -130,7 +132,9 @@ def _process_memory_mb(process: psutil.Process) -> float:
     return process.memory_info().rss / 1024 / 1024
 
 
-def _estimate_linear_regression_flops(training_rows: int, test_rows: int, feature_count: int) -> int:
+def _estimate_linear_regression_flops(
+    training_rows: int, test_rows: int, feature_count: int
+) -> int:
     coefficient_count = feature_count + 1
     normal_equation_flops = training_rows * coefficient_count * coefficient_count * 2
     solve_flops = (2 * coefficient_count * coefficient_count * coefficient_count) // 3
@@ -138,7 +142,27 @@ def _estimate_linear_regression_flops(training_rows: int, test_rows: int, featur
     return normal_equation_flops + solve_flops + inference_flops
 
 
-def _gpu_metrics(device: torch.device, gpu_used: bool, kernel_ms: float | None) -> GpuMetrics:
+def _empty_gpu_metrics() -> GpuMetrics:
+    return GpuMetrics(
+        name=None,
+        utilization_percent=None,
+        memory_allocated_mb=None,
+        memory_reserved_mb=None,
+        memory_peak_allocated_mb=None,
+        memory_total_mb=None,
+        temperature_c=None,
+        kernel_execution_ms=None,
+        tensor_core_utilization_percent=None,
+        device_info=None,
+    )
+
+
+def _gpu_metrics(
+    device: torch.device, gpu_requested: bool, gpu_used: bool, kernel_ms: float | None
+) -> GpuMetrics:
+    if not gpu_requested:
+        return _empty_gpu_metrics()
+
     nvidia = _query_nvidia_smi()
     name = None
     allocated = None
@@ -166,9 +190,15 @@ def _gpu_metrics(device: torch.device, gpu_used: bool, kernel_ms: float | None) 
     return GpuMetrics(
         name=name or nvidia.get("name"),
         utilization_percent=nvidia.get("utilization_percent"),
-        memory_allocated_mb=round(allocated, 3) if allocated is not None else nvidia.get("memory_used_mb"),
+        memory_allocated_mb=(
+            round(allocated, 3)
+            if allocated is not None
+            else nvidia.get("memory_used_mb")
+        ),
         memory_reserved_mb=round(reserved, 3) if reserved is not None else None,
-        memory_peak_allocated_mb=round(peak_allocated, 3) if peak_allocated is not None else None,
+        memory_peak_allocated_mb=(
+            round(peak_allocated, 3) if peak_allocated is not None else None
+        ),
         memory_total_mb=nvidia.get("memory_total_mb"),
         temperature_c=nvidia.get("temperature_c"),
         kernel_execution_ms=round(kernel_ms, 3) if kernel_ms is not None else None,
@@ -281,7 +311,7 @@ async def predict(
             f"Every tests.csv row must contain exactly {feature_count} feature columns."
         )
 
-    gpu_used = use_gpu and torch.cuda.is_available()
+    gpu_used = torch.cuda.is_available() if use_gpu else False
     device = torch.device("cuda" if gpu_used else "cpu")
     if gpu_used:
         torch.cuda.reset_peak_memory_stats(device)
@@ -308,7 +338,7 @@ async def predict(
         cuda_end = torch.cuda.Event(enable_timing=True)
         cuda_start.record()
 
-    predictions = _predict_with_torch_least_squares(x_train, y_train, x_tests)
+    prediction_tensor = _predict_with_torch_least_squares(x_train, y_train, x_tests)
 
     if gpu_used and cuda_start is not None and cuda_end is not None:
         cuda_end.record()
@@ -317,6 +347,7 @@ async def predict(
     kernel_ms = cuda_start.elapsed_time(cuda_end) if cuda_start and cuda_end else None
 
     postprocess_start = time.perf_counter()
+    predictions = [float(value) for value in prediction_tensor.detach().cpu().tolist()]
     prediction_items = [
         CsvPrediction(rowIndex=index, prediction=value)
         for index, value in enumerate(predictions)
@@ -333,7 +364,7 @@ async def predict(
             postprocess_ms=postprocess_ms,
         ),
         cpu=performance.cpu_metrics(total_ms),
-        gpu=_gpu_metrics(device, gpu_used, kernel_ms),
+        gpu=_gpu_metrics(device, use_gpu, gpu_used, kernel_ms),
         system=SystemMetrics(
             os=platform.platform(),
             framework_version=platform.python_version(),
@@ -344,7 +375,9 @@ async def predict(
         model_metrics=ModelMetrics(
             batch_size=len(test_rows),
             parameter_count=feature_count + 1,
-            flops_estimate=_estimate_linear_regression_flops(len(training_rows), len(test_rows), feature_count),
+            flops_estimate=_estimate_linear_regression_flops(
+                len(training_rows), len(test_rows), feature_count
+            ),
         ),
         framework="PyTorch",
         model="torch.linalg.lstsq-linear-regression",
@@ -445,7 +478,7 @@ def _predict_with_torch_least_squares(
     x_train: torch.Tensor,
     y_train: torch.Tensor,
     x_tests: torch.Tensor,
-) -> list[float]:
+) -> torch.Tensor:
     train_bias = torch.ones(
         (x_train.shape[0], 1), dtype=x_train.dtype, device=x_train.device
     )
@@ -456,8 +489,7 @@ def _predict_with_torch_least_squares(
     test_design = torch.cat((test_bias, x_tests), dim=1)
 
     solution = torch.linalg.lstsq(train_design, y_train).solution
-    predicted = test_design.matmul(solution).squeeze(dim=1)
-    return [float(value) for value in predicted.detach().cpu().tolist()]
+    return test_design.matmul(solution).squeeze(dim=1)
 
 
 def _parse_float(value: str) -> float:
