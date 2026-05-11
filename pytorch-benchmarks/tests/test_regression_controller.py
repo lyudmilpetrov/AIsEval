@@ -9,6 +9,7 @@ from starlette.datastructures import FormData
 from pytorch_benchmarks.controllers.regression_controller import (
     CsvRegressionInput,
     _find_csv_input,
+    _gpu_metrics,
     _read_request_form,
 )
 
@@ -46,7 +47,9 @@ class _JsonContentTypeRequest:
         raise AssertionError("form parsing should not be attempted")
 
 
-def test_read_request_form_reports_received_content_type_for_postman_misconfiguration() -> None:
+def test_read_request_form_reports_received_content_type_for_postman_misconfiguration() -> (
+    None
+):
     response = asyncio.run(_read_request_form(_JsonContentTypeRequest()))
 
     assert response.status_code == 400
@@ -89,3 +92,23 @@ def test_predict_accepts_text_form_fields() -> None:
     assert response.testRows == 1
     assert response.featureCount == 1
     assert response.predictions[0].prediction == pytest.approx(9.0)
+
+
+def test_gpu_metrics_does_not_probe_gpu_when_not_requested(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import torch
+    import pytorch_benchmarks.controllers.regression_controller as controller
+
+    def fail_query() -> dict[str, float | str]:
+        raise AssertionError("nvidia-smi should not be queried when UseGPU=false")
+
+    monkeypatch.setattr(controller, "_query_nvidia_smi", fail_query)
+
+    metrics = _gpu_metrics(
+        torch.device("cpu"), gpu_requested=False, gpu_used=False, kernel_ms=None
+    )
+
+    assert metrics.name is None
+    assert metrics.utilization_percent is None
+    assert metrics.memory_allocated_mb is None
