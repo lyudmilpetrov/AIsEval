@@ -22,20 +22,8 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 2,
+          "SelectedChildIndex": 1,
           "Children": [
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "BothController.cs",
-              "DocumentMoniker": "C:\\Users\\ljudm\\Documents\\Work\\AIsEval\\aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Controllers\\BothController.cs",
-              "RelativeDocumentMoniker": "aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Controllers\\BothController.cs",
-              "ToolTip": "C:\\Users\\ljudm\\Documents\\Work\\AIsEval\\aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Controllers\\BothController.cs",
-              "RelativeToolTip": "aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Controllers\\BothController.cs",
-              "ViewState": "AgIAAKkAAAAAAAAAAAAmwAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-05-11T17:19:44.276Z"
-            },
             {
               "$type": "Document",
               "DocumentIndex": 1,
@@ -60,6 +48,18 @@
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-05-08T19:31:03.351Z",
               "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "BothController.cs",
+              "DocumentMoniker": "C:\\Users\\ljudm\\Documents\\Work\\AIsEval\\aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Controllers\\BothController.cs",
+              "RelativeDocumentMoniker": "aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Controllers\\BothController.cs",
+              "ToolTip": "C:\\Users\\ljudm\\Documents\\Work\\AIsEval\\aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Controllers\\BothController.cs",
+              "RelativeToolTip": "aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Controllers\\BothController.cs",
+              "ViewState": "AgIAAKkAAAAAAAAAAAAmwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-11T17:19:44.276Z"
             }
           ]
         }

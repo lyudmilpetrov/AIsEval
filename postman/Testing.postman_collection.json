@@ -31,7 +31,7 @@
           "response": []
         },
         {
-          "name": "SimpleRegression",
+          "name": "SimpleRegression_Small_Set",
           "request": {
             "method": "POST",
             "header": [],
@@ -42,18 +42,18 @@
                   "key": "features",
                   "type": "file",
                   "uuid": "7c78a918-9d84-4916-9ecf-409604cdd774",
-                  "src": "/C:/Users/ljudm/Documents/Work/AIsEval/TestData/RegressionTestData/features.csv"
+                  "src": "/C:/Users/ljudm/Documents/Work/AIsEval/TestData/RegressionTestData/Simple/SmallSet/features.csv"
                 },
                 {
                   "key": "tests",
                   "type": "file",
                   "uuid": "f3dff970-f000-49b1-b395-6ab90a67166f",
-                  "src": "/C:/Users/ljudm/Documents/Work/AIsEval/TestData/RegressionTestData/tests.csv"
+                  "src": "/C:/Users/ljudm/Documents/Work/AIsEval/TestData/RegressionTestData/Simple/SmallSet/tests.csv"
                 }
               ]
             },
             "url": {
-              "raw": "https://localhost:50724/api/Both/SimpleRegression?UseGPU=false",
+              "raw": "https://localhost:50724/api/Regression/SimpleRegression?UseGPU=false",
               "protocol": "https",
               "host": [
                 "localhost"
@@ -61,7 +61,51 @@
               "port": "50724",
               "path": [
                 "api",
-                "Both",
+                "Regression",
+                "SimpleRegression"
+              ],
+              "query": [
+                {
+                  "key": "UseGPU",
+                  "value": "false"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "SimpleRegression_Bigger_Set",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "features",
+                  "type": "file",
+                  "uuid": "7c78a918-9d84-4916-9ecf-409604cdd774",
+                  "src": "/C:/Users/ljudm/Documents/Work/AIsEval/TestData/RegressionTestData/Complex/LargeSet/features.csv"
+                },
+                {
+                  "key": "tests",
+                  "type": "file",
+                  "uuid": "f3dff970-f000-49b1-b395-6ab90a67166f",
+                  "src": "/C:/Users/ljudm/Documents/Work/AIsEval/TestData/RegressionTestData/Complex/LargeSet/tests.csv"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://localhost:50724/api/Regression/SimpleRegression?UseGPU=false",
+              "protocol": "https",
+              "host": [
+                "localhost"
+              ],
+              "port": "50724",
+              "path": [
+                "api",
+                "Regression",
                 "SimpleRegression"
               ],
               "query": [
@@ -101,7 +145,7 @@
           "response": []
         },
         {
-          "name": "SimpleRegression",
+          "name": "SimpleRegression_Small_Set",
           "request": {
             "method": "POST",
             "header": [],
@@ -112,13 +156,57 @@
                   "key": "features",
                   "type": "file",
                   "uuid": "7c78a918-9d84-4916-9ecf-409604cdd774",
-                  "src": "/C:/Users/ljudm/Documents/Work/AIsEval/TestData/RegressionTestData/features.csv"
+                  "src": "/C:/Users/ljudm/Documents/Work/AIsEval/TestData/RegressionTestData/Simple/SmallSet/features.csv"
                 },
                 {
                   "key": "tests",
                   "type": "file",
                   "uuid": "f3dff970-f000-49b1-b395-6ab90a67166f",
-                  "src": "/C:/Users/ljudm/Documents/Work/AIsEval/TestData/RegressionTestData/tests.csv"
+                  "src": "/C:/Users/ljudm/Documents/Work/AIsEval/TestData/RegressionTestData/Simple/SmallSet/tests.csv"
+                }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/Regression/SimpleRegression?UseGPU=false",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8000",
+              "path": [
+                "api",
+                "Regression",
+                "SimpleRegression"
+              ],
+              "query": [
+                {
+                  "key": "UseGPU",
+                  "value": "false"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "SimpleRegression_Bigger_Set",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "features",
+                  "type": "file",
+                  "uuid": "7c78a918-9d84-4916-9ecf-409604cdd774",
+                  "src": "/C:/Users/ljudm/Documents/Work/AIsEval/TestData/RegressionTestData/Complex/LargeSet/features.csv"
+                },
+                {
+                  "key": "tests",
+                  "type": "file",
+                  "uuid": "f3dff970-f000-49b1-b395-6ab90a67166f",
+                  "src": "/C:/Users/ljudm/Documents/Work/AIsEval/TestData/RegressionTestData/Complex/LargeSet/tests.csv"
                 }
               ]
             },
@@ -161,18 +249,18 @@
                   "key": "features",
                   "type": "file",
                   "uuid": "7c78a918-9d84-4916-9ecf-409604cdd774",
-                  "src": "/C:/Users/ljudm/Documents/Work/AIsEval/TestData/RegressionTestData/features.csv"
+                  "src": "/C:/Users/ljudm/Documents/Work/AIsEval/TestData/RegressionTestData/Complex/LargeSet/features.csv"
                 },
                 {
                   "key": "tests",
                   "type": "file",
                   "uuid": "f3dff970-f000-49b1-b395-6ab90a67166f",
-                  "src": "/C:/Users/ljudm/Documents/Work/AIsEval/TestData/RegressionTestData/tests.csv"
+                  "src": "/C:/Users/ljudm/Documents/Work/AIsEval/TestData/RegressionTestData/Complex/LargeSet/tests.csv"
                 }
               ]
             },
             "url": {
-              "raw": "https://localhost:50724/api/Regression/SimpleRegression?UseGPU=true",
+              "raw": "https://localhost:50724/api/Both/SimpleRegression?UseGPU=false",
               "protocol": "https",
               "host": [
                 "localhost"
@@ -180,13 +268,13 @@
               "port": "50724",
               "path": [
                 "api",
-                "Regression",
+                "Both",
                 "SimpleRegression"
               ],
               "query": [
                 {
                   "key": "UseGPU",
-                  "value": "true"
+                  "value": "false"
                 }
               ]
             }
