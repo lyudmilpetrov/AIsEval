@@ -8,7 +8,7 @@ namespace AiDotNetBenchmarks.Controllers;
 [Route("api/[controller]")]
 public sealed class BothController : ControllerBase
 {
-    private static readonly Uri AiDotNetSimpleRegressionEndpoint = new("https://localhost:50722/api/Regression/SimpleRegression");
+    private static readonly Uri AiDotNetSimpleRegressionEndpoint = new("https://localhost:50724/api/Regression/SimpleRegression");
     private static readonly Uri PyTorchSimpleRegressionEndpoint = new("http://localhost:8000/api/Regression/SimpleRegression");
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 

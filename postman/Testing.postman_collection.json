@@ -15,12 +15,12 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "https://localhost:50722/api/Regression/test",
+              "raw": "https://localhost:50724/api/Regression/test",
               "protocol": "https",
               "host": [
                 "localhost"
               ],
-              "port": "50722",
+              "port": "50724",
               "path": [
                 "api",
                 "Regression",
@@ -53,12 +53,12 @@
               ]
             },
             "url": {
-              "raw": "https://localhost:50722/api/Both/SimpleRegression?UseGPU=false",
+              "raw": "https://localhost:50724/api/Both/SimpleRegression?UseGPU=false",
               "protocol": "https",
               "host": [
                 "localhost"
               ],
-              "port": "50722",
+              "port": "50724",
               "path": [
                 "api",
                 "Both",
@@ -172,12 +172,12 @@
               ]
             },
             "url": {
-              "raw": "https://localhost:50722/api/Regression/SimpleRegression?UseGPU=true",
+              "raw": "https://localhost:50724/api/Regression/SimpleRegression?UseGPU=true",
               "protocol": "https",
               "host": [
                 "localhost"
               ],
-              "port": "50722",
+              "port": "50724",
               "path": [
                 "api",
                 "Regression",
