@@ -12,7 +12,7 @@ from typing import Annotated
 import psutil
 
 import torch
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Query, Request, Response
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 from starlette.datastructures import FormData, UploadFile
@@ -26,6 +26,7 @@ class CsvPrediction(BaseModel):
 
 
 class TimingMetrics(BaseModel):
+    timing_unit: str = "milliseconds"
     total_ms: float
     preprocess_ms: float
     inference_ms: float
@@ -268,6 +269,7 @@ def test() -> str:
 @router.post("/SimpleRegression", response_model=CsvRegressionResponse)
 async def predict(
     request: Request,
+    response: Response,
     use_gpu: Annotated[bool, Query(alias="UseGPU")] = False,
 ) -> CsvRegressionResponse | JSONResponse:
     performance = _PerformanceMeasurement.start()
@@ -354,6 +356,7 @@ async def predict(
     ]
     postprocess_ms = _elapsed_ms(postprocess_start)
     total_ms = _elapsed_ms(performance.started_at)
+    response.headers["Server-Timing"] = f"app;dur={total_ms}"
 
     return CsvRegressionResponse(
         prediction=prediction_items,

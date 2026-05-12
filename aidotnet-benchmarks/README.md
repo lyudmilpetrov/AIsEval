@@ -61,3 +61,7 @@ reselect `features.csv` and `tests.csv`, or switch those rows from `File` to
 `Text` and paste the CSV contents.
 
 The response contains JSON metadata plus one prediction per row in `tests.csv`.
+The `timings` object is reported in milliseconds (`timing_unit:
+"milliseconds"`), and the response also includes a `Server-Timing:
+app;dur=...` header for comparing server-side duration with Postman's
+client-side round-trip time.
