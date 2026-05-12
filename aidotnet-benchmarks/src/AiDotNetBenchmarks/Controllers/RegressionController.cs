@@ -108,11 +108,13 @@ public sealed class RegressionController : ControllerBase
         postprocessTimer.Stop();
 
         var totalMs = measurement.ElapsedMilliseconds;
+        Response.Headers["Server-Timing"] = $"app;dur={totalMs.ToString(CultureInfo.InvariantCulture)}";
         var gpu = UseGPU ? RegressionGpuProbe.Read() : RegressionGpuProbe.Empty();
 
         return Ok(new CsvRegressionResponse(
             predictions,
             new TimingMetrics(
+                "milliseconds",
                 totalMs,
                 RoundMilliseconds(preprocessTimer.Elapsed.TotalMilliseconds),
                 RoundMilliseconds(inferenceTimer.Elapsed.TotalMilliseconds),
@@ -411,6 +413,7 @@ public sealed record CsvRegressionResponse(
     IReadOnlyList<CsvPrediction> Predictions);
 
 public sealed record TimingMetrics(
+    [property: JsonPropertyName("timing_unit")] string TimingUnit,
     [property: JsonPropertyName("total_ms")] double TotalMs,
     [property: JsonPropertyName("preprocess_ms")] double PreprocessMs,
     [property: JsonPropertyName("inference_ms")] double InferenceMs,
@@ -477,7 +480,10 @@ internal sealed class RequestPerformanceMeasurement
     public static RequestPerformanceMeasurement Start() => new();
 
     public double ElapsedMilliseconds =>
-        Math.Round(Stopwatch.GetElapsedTime(_startedAt).TotalMilliseconds, 3);
+        RoundElapsedMilliseconds(Stopwatch.GetTimestamp() - _startedAt);
+
+    private static double RoundElapsedMilliseconds(long elapsedTicks) =>
+        Math.Round(elapsedTicks * 1000d / Stopwatch.Frequency, 3);
 
     public CpuMetrics ToCpuMetrics(double elapsedMilliseconds)
     {

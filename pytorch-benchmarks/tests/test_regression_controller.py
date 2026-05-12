@@ -4,6 +4,7 @@ import asyncio
 import json
 
 import pytest
+from fastapi import Response
 from starlette.datastructures import FormData
 
 from pytorch_benchmarks.controllers.regression_controller import (
@@ -85,12 +86,16 @@ def test_predict_accepts_text_form_fields() -> None:
         predict,
     )
 
-    response = asyncio.run(predict(_TextFormRequest(), use_gpu=False))
+    fastapi_response = Response()
+    response = asyncio.run(predict(_TextFormRequest(), fastapi_response, use_gpu=False))
 
     assert isinstance(response, CsvRegressionResponse)
     assert response.trainingRows == 3
     assert response.testRows == 1
     assert response.featureCount == 1
+    assert response.timings.timing_unit == "milliseconds"
+    assert response.timings.total_ms > 0
+    assert fastapi_response.headers["Server-Timing"].startswith("app;dur=")
     assert response.predictions[0].prediction == pytest.approx(9.0)
 
 

@@ -162,8 +162,11 @@ alias. Send a multipart request with:
 - `tests`: `tests.csv`, where each row contains only the numeric feature columns
   to predict.
 
-Both files may include a single header row. The endpoint currently runs on CPU
-only to match the AiDotNet regression endpoint; `UseGPU=true` is echoed as
+Both files may include a single header row. The `timings` object is reported in
+milliseconds (`timing_unit: "milliseconds"`), and the response also includes a
+`Server-Timing: app;dur=...` header for comparing server-side duration with
+Postman's client-side round-trip time. The endpoint currently runs on CPU only
+to match the AiDotNet regression endpoint; `UseGPU=true` is echoed as
 `gpuRequested: true`, but `gpuUsed` remains `false`.
 
 ```bash
