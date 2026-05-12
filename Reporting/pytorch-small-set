@@ -1,1 +1,76 @@
-{"prediction":[{"rowIndex":0,"prediction":11.989999999999997},{"rowIndex":1,"prediction":13.979999999999995},{"rowIndex":2,"prediction":15.969999999999995}],"timings":{"timing_unit":"milliseconds","total_ms":1.031,"preprocess_ms":0.661,"inference_ms":0.274,"postprocess_ms":0.037},"cpu":{"usage_percent":0.0,"memory_mb":241.715,"memory_before_mb":241.711,"memory_after_mb":241.715,"threads":35,"cpu_cycles":null},"gpu":{"name":null,"utilization_percent":null,"memory_allocated_mb":null,"memory_reserved_mb":null,"memory_peak_allocated_mb":null,"memory_total_mb":null,"temperature_c":null,"kernel_execution_ms":null,"tensor_core_utilization_percent":null,"device_info":null},"system":{"os":"Windows-11-10.0.26200-SP0","framework_version":"3.13.7","library_version":"2.11.0+cpu","device":"cpu","mixed_precision":false},"model_metrics":{"batch_size":3,"parameter_count":2,"flops_estimate":57},"framework":"PyTorch","model":"torch.linalg.lstsq-linear-regression","gpuRequested":false,"gpuUsed":false,"trainingRows":5,"testRows":3,"featureCount":1,"predictions":[{"rowIndex":0,"prediction":11.989999999999997},{"rowIndex":1,"prediction":13.979999999999995},{"rowIndex":2,"prediction":15.969999999999995}]}
+{
+    "prediction": [
+        {
+            "rowIndex": 0,
+            "prediction": 11.989999999999997
+        },
+        {
+            "rowIndex": 1,
+            "prediction": 13.979999999999995
+        },
+        {
+            "rowIndex": 2,
+            "prediction": 15.969999999999995
+        }
+    ],
+    "timings": {
+        "timing_unit": "milliseconds",
+        "total_ms": 1.031,
+        "preprocess_ms": 0.661,
+        "inference_ms": 0.274,
+        "postprocess_ms": 0.037
+    },
+    "cpu": {
+        "usage_percent": 0.0,
+        "memory_mb": 241.715,
+        "memory_before_mb": 241.711,
+        "memory_after_mb": 241.715,
+        "threads": 35,
+        "cpu_cycles": null
+    },
+    "gpu": {
+        "name": null,
+        "utilization_percent": null,
+        "memory_allocated_mb": null,
+        "memory_reserved_mb": null,
+        "memory_peak_allocated_mb": null,
+        "memory_total_mb": null,
+        "temperature_c": null,
+        "kernel_execution_ms": null,
+        "tensor_core_utilization_percent": null,
+        "device_info": null
+    },
+    "system": {
+        "os": "Windows-11-10.0.26200-SP0",
+        "framework_version": "3.13.7",
+        "library_version": "2.11.0+cpu",
+        "device": "cpu",
+        "mixed_precision": false
+    },
+    "model_metrics": {
+        "batch_size": 3,
+        "parameter_count": 2,
+        "flops_estimate": 57
+    },
+    "framework": "PyTorch",
+    "model": "torch.linalg.lstsq-linear-regression",
+    "gpuRequested": false,
+    "gpuUsed": false,
+    "trainingRows": 5,
+    "testRows": 3,
+    "featureCount": 1,
+    "predictions": [
+        {
+            "rowIndex": 0,
+            "prediction": 11.989999999999997
+        },
+        {
+            "rowIndex": 1,
+            "prediction": 13.979999999999995
+        },
+        {
+            "rowIndex": 2,
+            "prediction": 15.969999999999995
+        }
+    ]
+}
