@@ -1,12 +1,12 @@
 {
-  "profiles": {
-    "AiDotNetBenchmarks": {
-      "commandName": "Project",
-      "launchBrowser": true,
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      },
-      "applicationUrl": "https://localhost:50724;http://localhost:50725"
-    }
-  }
+   "profiles": {
+      "AiDotNetBenchmarks": {
+         "commandName": "Project",
+         "launchBrowser": true,
+         "environmentVariables": {
+            "ASPNETCORE_ENVIRONMENT": "Development"
+         },
+         "applicationUrl": "https://localhost:7001;http://localhost:7000"
+      }
+   }
 }
