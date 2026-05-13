@@ -476,7 +476,7 @@ internal static class CsvRegressionReader
             cancellationToken.ThrowIfCancellationRequested();
             if (string.IsNullOrWhiteSpace(line)) continue;
 
-            var fields = SplitCsvLine(line);
+            var fields = TrimTrailingEmptyFields(SplitDelimitedLine(line));
             if (fields.Count == 0 || fields.All(string.IsNullOrWhiteSpace)) continue;
 
             if (TryParseRow(fields, out var values))
@@ -516,8 +516,20 @@ internal static class CsvRegressionReader
         return true;
     }
 
-    private static List<string> SplitCsvLine(string line)
+    private static List<string> TrimTrailingEmptyFields(List<string> fields)
     {
+        for (var index = fields.Count - 1; index >= 0; index--)
+        {
+            if (!string.IsNullOrWhiteSpace(fields[index])) break;
+            fields.RemoveAt(index);
+        }
+
+        return fields;
+    }
+
+    private static List<string> SplitDelimitedLine(string line)
+    {
+        var delimiter = DetectDelimiter(line);
         var fields = new List<string>();
         var field = new StringBuilder();
         var inQuotes = false;
@@ -537,7 +549,7 @@ internal static class CsvRegressionReader
                     inQuotes = !inQuotes;
                 }
             }
-            else if (current == ',' && !inQuotes)
+            else if (current == delimiter && !inQuotes)
             {
                 fields.Add(field.ToString().Trim());
                 field.Clear();
@@ -550,5 +562,39 @@ internal static class CsvRegressionReader
 
         fields.Add(field.ToString().Trim());
         return fields;
+    }
+
+    private static char DetectDelimiter(string line)
+    {
+        var commaCount = 0;
+        var tabCount = 0;
+        var semicolonCount = 0;
+        var inQuotes = false;
+
+        for (var index = 0; index < line.Length; index++)
+        {
+            var current = line[index];
+            if (current == '"')
+            {
+                if (inQuotes && index + 1 < line.Length && line[index + 1] == '"')
+                {
+                    index++;
+                }
+                else
+                {
+                    inQuotes = !inQuotes;
+                }
+            }
+            else if (!inQuotes)
+            {
+                if (current == ',') commaCount++;
+                else if (current == '\t') tabCount++;
+                else if (current == ';') semicolonCount++;
+            }
+        }
+
+        if (tabCount > commaCount && tabCount >= semicolonCount) return '\t';
+        if (semicolonCount > commaCount && semicolonCount > tabCount) return ';';
+        return ',';
     }
 }
