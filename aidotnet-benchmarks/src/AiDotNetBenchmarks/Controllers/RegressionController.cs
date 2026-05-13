@@ -96,9 +96,7 @@ public sealed class RegressionController : ControllerBase
 
         var regressionModelName = GetRegressionModelName(featureCount);
         var inferenceTimer = Stopwatch.StartNew();
-        var predictedValues = trainingRows.Count >= MinimumRowsForAiDotNetValidationSplit
-            ? await PredictWithAiDotNetAsync(features, labels, testData, featureCount, HttpContext.RequestAborted)
-            : PredictWithLeastSquares(trainingRows, testRows, featureCount);
+        var predictedValues = await PredictWithAiDotNetAsync(features, labels, testData, featureCount, HttpContext.RequestAborted);
         inferenceTimer.Stop();
 
         var postprocessTimer = Stopwatch.StartNew();
@@ -193,126 +191,7 @@ public sealed class RegressionController : ControllerBase
 
         return multipleRegressionResult.Predict(testData);
     }
-
-    private static Vector<double> PredictWithLeastSquares(
-        IReadOnlyList<double[]> trainingRows,
-        IReadOnlyList<double[]> testRows,
-        int featureCount)
-    {
-        var coefficients = FitLeastSquares(trainingRows, featureCount);
-        var predictions = new Vector<double>(testRows.Count);
-
-        for (var rowIndex = 0; rowIndex < testRows.Count; rowIndex++)
-        {
-            var prediction = coefficients[0];
-            for (var featureIndex = 0; featureIndex < featureCount; featureIndex++)
-            {
-                prediction += coefficients[featureIndex + 1] * testRows[rowIndex][featureIndex];
-            }
-
-            predictions[rowIndex] = prediction;
-        }
-
-        return predictions;
-    }
-
-    private static double[] FitLeastSquares(IReadOnlyList<double[]> rows, int featureCount)
-    {
-        var coefficientCount = featureCount + 1;
-        var normalMatrix = new double[coefficientCount, coefficientCount];
-        var normalVector = new double[coefficientCount];
-
-        foreach (var row in rows)
-        {
-            var target = row[featureCount];
-            for (var i = 0; i < coefficientCount; i++)
-            {
-                var left = i == 0 ? 1d : row[i - 1];
-                normalVector[i] += left * target;
-
-                for (var j = 0; j < coefficientCount; j++)
-                {
-                    var right = j == 0 ? 1d : row[j - 1];
-                    normalMatrix[i, j] += left * right;
-                }
-            }
-        }
-
-        return SolveLinearSystem(normalMatrix, normalVector);
-    }
-
-    private static double[] SolveLinearSystem(double[,] matrix, double[] vector)
-    {
-        const double Ridge = 1e-8;
-        const double PivotTolerance = 1e-12;
-
-        var size = vector.Length;
-        var augmented = new double[size, size + 1];
-
-        for (var row = 0; row < size; row++)
-        {
-            for (var column = 0; column < size; column++)
-            {
-                augmented[row, column] = matrix[row, column] + (row == column ? Ridge : 0d);
-            }
-
-            augmented[row, size] = vector[row];
-        }
-
-        for (var pivot = 0; pivot < size; pivot++)
-        {
-            var pivotRow = pivot;
-            var pivotMagnitude = Math.Abs(augmented[pivot, pivot]);
-            for (var row = pivot + 1; row < size; row++)
-            {
-                var candidate = Math.Abs(augmented[row, pivot]);
-                if (candidate > pivotMagnitude)
-                {
-                    pivotMagnitude = candidate;
-                    pivotRow = row;
-                }
-            }
-
-            if (pivotRow != pivot)
-            {
-                for (var column = pivot; column <= size; column++)
-                {
-                    (augmented[pivot, column], augmented[pivotRow, column]) =
-                        (augmented[pivotRow, column], augmented[pivot, column]);
-                }
-            }
-
-            if (Math.Abs(augmented[pivot, pivot]) < PivotTolerance)
-            {
-                augmented[pivot, pivot] = PivotTolerance;
-            }
-
-            var pivotValue = augmented[pivot, pivot];
-            for (var row = pivot + 1; row < size; row++)
-            {
-                var factor = augmented[row, pivot] / pivotValue;
-                for (var column = pivot; column <= size; column++)
-                {
-                    augmented[row, column] -= factor * augmented[pivot, column];
-                }
-            }
-        }
-
-        var solution = new double[size];
-        for (var row = size - 1; row >= 0; row--)
-        {
-            var sum = augmented[row, size];
-            for (var column = row + 1; column < size; column++)
-            {
-                sum -= augmented[row, column] * solution[column];
-            }
-
-            solution[row] = sum / augmented[row, row];
-        }
-
-        return solution;
-    }
-
+       
     private static double[,] ToFeatureArray(IReadOnlyList<double[]> rows, int featureCount)
     {
         var features = new double[rows.Count, featureCount];

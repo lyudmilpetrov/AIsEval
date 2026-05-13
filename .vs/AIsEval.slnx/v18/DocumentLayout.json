@@ -7,6 +7,10 @@
       "RelativeMoniker": "D:0:0:{8ACDE0AA-CBB7-5A9B-E1F7-7F53E0D1D1BF}|aidotnet-benchmarks\\AiDotNetBenchmarks.csproj|solutionrelative:aidotnet-benchmarks\\src\\aidotnetbenchmarks\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
+      "AbsoluteMoniker": "D:0:0:{8ACDE0AA-CBB7-5A9B-E1F7-7F53E0D1D1BF}|aidotnet-benchmarks\\AiDotNetBenchmarks.csproj|c:\\users\\ljudm\\documents\\work\\aiseval\\aidotnet-benchmarks\\properties\\launchsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{8ACDE0AA-CBB7-5A9B-E1F7-7F53E0D1D1BF}|aidotnet-benchmarks\\AiDotNetBenchmarks.csproj|solutionrelative:aidotnet-benchmarks\\properties\\launchsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{8ACDE0AA-CBB7-5A9B-E1F7-7F53E0D1D1BF}|aidotnet-benchmarks\\AiDotNetBenchmarks.csproj|c:\\users\\ljudm\\documents\\work\\aiseval\\aidotnet-benchmarks\\src\\aidotnetbenchmarks\\controllers\\regressioncontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{8ACDE0AA-CBB7-5A9B-E1F7-7F53E0D1D1BF}|aidotnet-benchmarks\\AiDotNetBenchmarks.csproj|solutionrelative:aidotnet-benchmarks\\src\\aidotnetbenchmarks\\controllers\\regressioncontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
@@ -22,19 +26,33 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 1,
+          "SelectedChildIndex": 2,
           "Children": [
             {
               "$type": "Document",
               "DocumentIndex": 1,
+              "Title": "launchSettings.json",
+              "DocumentMoniker": "C:\\Users\\ljudm\\Documents\\Work\\AIsEval\\aidotnet-benchmarks\\Properties\\launchSettings.json",
+              "RelativeDocumentMoniker": "aidotnet-benchmarks\\Properties\\launchSettings.json",
+              "ToolTip": "C:\\Users\\ljudm\\Documents\\Work\\AIsEval\\aidotnet-benchmarks\\Properties\\launchSettings.json",
+              "RelativeToolTip": "aidotnet-benchmarks\\Properties\\launchSettings.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAAwAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2026-05-13T01:12:45.605Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
               "Title": "RegressionController.cs",
               "DocumentMoniker": "C:\\Users\\ljudm\\Documents\\Work\\AIsEval\\aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Controllers\\RegressionController.cs",
               "RelativeDocumentMoniker": "aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Controllers\\RegressionController.cs",
               "ToolTip": "C:\\Users\\ljudm\\Documents\\Work\\AIsEval\\aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Controllers\\RegressionController.cs",
               "RelativeToolTip": "aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Controllers\\RegressionController.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAL0AAAAYAAAAAAAAAA==",
+              "ViewState": "AgIAAMAAAAAAAAAAAAAAAMIAAAAmAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-05-08T19:52:40.577Z"
+              "WhenOpened": "2026-05-08T19:52:40.577Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -44,14 +62,14 @@
               "RelativeDocumentMoniker": "aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Program.cs",
               "ToolTip": "C:\\Users\\ljudm\\Documents\\Work\\AIsEval\\aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Program.cs",
               "RelativeToolTip": "aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Program.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABoAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAABMAAAAAAAAAAAAiwBkAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-05-08T19:31:03.351Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 3,
               "Title": "BothController.cs",
               "DocumentMoniker": "C:\\Users\\ljudm\\Documents\\Work\\AIsEval\\aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Controllers\\BothController.cs",
               "RelativeDocumentMoniker": "aidotnet-benchmarks\\src\\AiDotNetBenchmarks\\Controllers\\BothController.cs",
